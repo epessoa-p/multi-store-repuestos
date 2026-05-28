@@ -28,17 +28,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'Editar Roles', 'slug' => 'roles.edit', 'module' => 'roles'],
             ['name' => 'Eliminar Roles', 'slug' => 'roles.delete', 'module' => 'roles'],
 
-            // Préstamos
-            ['name' => 'Ver Préstamos', 'slug' => 'loans.view', 'module' => 'loans'],
-            ['name' => 'Crear Préstamos', 'slug' => 'loans.create', 'module' => 'loans'],
-            ['name' => 'Editar Préstamos', 'slug' => 'loans.edit', 'module' => 'loans'],
-            ['name' => 'Aprobar Préstamos', 'slug' => 'loans.approve', 'module' => 'loans'],
-            ['name' => 'Eliminar Préstamos', 'slug' => 'loans.delete', 'module' => 'loans'],
-
-            // Pagos
-            ['name' => 'Ver Pagos', 'slug' => 'payments.view', 'module' => 'payments'],
-            ['name' => 'Registrar Pagos', 'slug' => 'payments.create', 'module' => 'payments'],
-
             // Reportes
             ['name' => 'Ver Reportes', 'slug' => 'reports.view', 'module' => 'reports'],
         ];

@@ -15,7 +15,7 @@
             <div class="brand-icon"><i class="bi bi-grid-1x2-fill"></i></div>
             <div>
                 <div class="brand-title">MATERIAL ADMIN PRO</div>
-                <small class="text-muted">Sistema de Prestamos</small>
+                <small class="text-muted">Multi-Store Repuestos</small>
             </div>
         </div>
 
@@ -26,28 +26,11 @@
                     <i class="bi bi-house"></i> Overview
                 </a>
             </li>
-            @if(auth()->user()->hasPermissionInCompany('loans.view', $currentCompany))
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" href="{{ route('clients.index') }}">
-                        <i class="bi bi-people"></i> Clientes
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('loans.*') && !request()->routeIs('loans.payments.*') ? 'active' : '' }}" href="{{ route('loans.index') }}">
-                        <i class="bi bi-cash-coin"></i> Prestamos
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('loans.payments.*') ? 'active' : '' }}" href="{{ route('loans.payments.index') }}">
-                        <i class="bi bi-receipt-cutoff"></i> Pagos préstamos
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">
-                        <i class="bi bi-file-earmark-ruled"></i> Plantillas
-                    </a>
-                </li>
-            @endif
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">
+                    <i class="bi bi-file-earmark-ruled"></i> Plantillas
+                </a>
+            </li>
         </ul>
 
         <div class="sidebar-section-title mt-4">Administracion</div>
@@ -82,13 +65,13 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('credit-categories.*') ? 'active' : '' }}" href="{{ route('credit-categories.index') }}">
-                    <i class="bi bi-tags"></i> Categorías crédito
+                <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
+                    <i class="bi bi-building-add"></i> Almacenes
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
-                    <i class="bi bi-building-add"></i> Almacenes
+                <a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">
+                    <i class="bi bi-cash-register"></i> Cajas
                 </a>
             </li>
             <li class="nav-item">
@@ -140,6 +123,7 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    @include('partials.cash-register-btn')
                     <div class="dropdown">
                         <button class="btn btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-person-circle"></i>
@@ -200,12 +184,7 @@
         <nav class="p-3">
             <ul class="nav flex-column gap-1">
                 <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">Overview</a></li>
-                @if(auth()->user()->hasPermissionInCompany('loans.view', $currentCompany))
-                    <li><a class="nav-link app-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" href="{{ route('clients.index') }}">Clientes</a></li>
-                    <li><a class="nav-link app-link {{ request()->routeIs('loans.*') && !request()->routeIs('loans.payments.*') ? 'active' : '' }}" href="{{ route('loans.index') }}">Prestamos</a></li>
-                    <li><a class="nav-link app-link {{ request()->routeIs('loans.payments.*') ? 'active' : '' }}" href="{{ route('loans.payments.index') }}">Pagos préstamos</a></li>
-                    <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">Plantillas</a></li>
-                @endif
+                <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">Plantillas</a></li>
                 @if(auth()->user()->is_super_admin)
                     <li><a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">Empresas</a></li>
                     <li><a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">Roles</a></li>
@@ -215,8 +194,8 @@
                 @endif
                 <li><a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">Sucursales</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Productos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('credit-categories.*') ? 'active' : '' }}" href="{{ route('credit-categories.index') }}">Categorías crédito</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">Almacenes</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">Cajas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">Cargos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">Personal</a></li>
             </ul>
@@ -355,6 +334,36 @@
     .btn-logout:hover {
         background: #363636;
         color: #fff;
+    }
+
+    .btn-cash-closed {
+        border: 1px solid #f97316;
+        background: #431407;
+        color: #fed7aa;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+
+    .btn-cash-closed:hover {
+        background: #7c2d12;
+        color: #ffedd5;
+    }
+
+    .btn-cash-open {
+        border: 1px solid #16a34a;
+        background: #052e16;
+        color: #86efac;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+
+    .btn-cash-open:hover {
+        background: #14532d;
+        color: #bbf7d0;
     }
 
     @media (max-width: 991.98px) {

@@ -23,12 +23,12 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Gerente',
                 'slug' => 'manager',
-                'description' => 'Gerente de préstamos',
+                'description' => 'Gerente de tienda',
             ],
             [
                 'name' => 'Cajero',
                 'slug' => 'cashier',
-                'description' => 'Operador de caja y pagos',
+                'description' => 'Operador de tienda',
             ],
             [
                 'name' => 'Empleado',

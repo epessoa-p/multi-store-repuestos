@@ -63,9 +63,6 @@
     <div class="header">
         <h1 class="title">{{ $documentTemplate->name }}</h1>
         <p class="meta">Tipo: {{ $documentTemplate->type_label }}</p>
-        @if($loan)
-            <p class="meta">Préstamo #{{ $loan->id }} - {{ $loan->client?->name ?? 'Sin cliente' }}</p>
-        @endif
         <p class="meta">Generado: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 

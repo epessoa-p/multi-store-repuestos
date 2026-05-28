@@ -99,38 +99,17 @@
                 </div>
                 <div class="card-body p-2">
                     @php
-                        $groups = [
-                            'Cliente' => [
-                                'cliente_nombre', 'cliente_cedula', 'cliente_telefono',
-                                'cliente_email', 'cliente_direccion',
-                            ],
-                            'Préstamo' => [
-                                'prestamo_id', 'prestamo_monto', 'prestamo_tasa',
-                                'prestamo_plazo', 'prestamo_cuota', 'prestamo_total', 'prestamo_saldo',
-                            ],
-                            'Empresa / Sucursal' => ['empresa_nombre', 'sucursal_nombre'],
-                            'Fechas' => ['fecha_actual', 'fecha_inicio', 'fecha_fin'],
-                        ];
                         $placeholders = \App\Models\DocumentTemplate::PLACEHOLDERS;
                     @endphp
-
-                    @foreach($groups as $groupName => $keys)
-                        <div class="mb-3">
-                            <div class="text-muted fw-semibold mb-1 px-1"
-                                 style="font-size: .7rem; letter-spacing: .05em; text-transform: uppercase;">
-                                {{ $groupName }}
-                            </div>
-                            @foreach($keys as $key)
-                                @php($token = sprintf('{{%s}}', $key))
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 insert-var-btn"
-                                        data-var="{{ $token }}"
-                                        title="{{ $placeholders[$key] ?? $key }}">
-                                    <code class="text-primary" style="font-size: .73rem;">{{ $token }}</code>
-                                    <span class="text-muted ms-1" style="font-size: .72rem;">{{ $placeholders[$key] ?? '' }}</span>
-                                </button>
-                            @endforeach
-                        </div>
+                    @foreach($placeholders as $key => $label)
+                        @php($token = sprintf('{{%s}}', $key))
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 insert-var-btn"
+                                data-var="{{ $token }}"
+                                title="{{ $label }}">
+                            <code class="text-primary" style="font-size: .73rem;">{{ $token }}</code>
+                            <span class="text-muted ms-1" style="font-size: .72rem;">{{ $label }}</span>
+                        </button>
                     @endforeach
                 </div>
             </div>

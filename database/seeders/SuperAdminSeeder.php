@@ -57,8 +57,6 @@ class SuperAdminSeeder extends Seeder
             $adminPermissions = \App\Models\Permission::whereIn('slug', [
                 'companies.view',
                 'users.view', 'users.create', 'users.edit',
-                'loans.view', 'loans.create', 'loans.edit', 'loans.approve',
-                'payments.view', 'payments.create',
                 'reports.view',
             ])->get();
             $adminRole->permissions()->sync($adminPermissions->pluck('id'));
@@ -68,7 +66,6 @@ class SuperAdminSeeder extends Seeder
         $managerRole = Role::where('slug', 'manager')->first();
         if ($managerRole) {
             $managerPermissions = \App\Models\Permission::whereIn('slug', [
-                'loans.view', 'loans.create', 'loans.approve',
                 'reports.view',
             ])->get();
             $managerRole->permissions()->sync($managerPermissions->pluck('id'));
@@ -77,20 +74,13 @@ class SuperAdminSeeder extends Seeder
         // Asignar permisos al rol cashier
         $cashierRole = Role::where('slug', 'cashier')->first();
         if ($cashierRole) {
-            $cashierPermissions = \App\Models\Permission::whereIn('slug', [
-                'loans.view',
-                'payments.view', 'payments.create',
-            ])->get();
-            $cashierRole->permissions()->sync($cashierPermissions->pluck('id'));
+            $cashierRole->permissions()->sync([]);
         }
 
         // Asignar permisos al rol employee
         $employeeRole = Role::where('slug', 'employee')->first();
         if ($employeeRole) {
-            $employeePermissions = \App\Models\Permission::whereIn('slug', [
-                'loans.view',
-            ])->get();
-            $employeeRole->permissions()->sync($employeePermissions->pluck('id'));
+            $employeeRole->permissions()->sync([]);
         }
     }
 }

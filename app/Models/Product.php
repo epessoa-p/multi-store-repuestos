@@ -14,7 +14,6 @@ class Product extends Model
 
     protected $fillable = [
         'company_id',
-        'credit_category_id',
         'name',
         'sku',
         'description',
@@ -34,11 +33,6 @@ class Product extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
-    }
-
-    public function creditCategory(): BelongsTo
-    {
-        return $this->belongsTo(CreditCategory::class);
     }
 
     public function inventoryMovements(): HasMany

@@ -1,13 +1,13 @@
 @extends('layouts.auth')
 
-@section('title', 'Login - Sistema de Préstamos')
+@section('title', 'Login - Multi-Store Repuestos')
 
 @section('content')
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
             <div class="logo"><i class="bi bi-graph-up"></i></div>
-            <h1>Sistema de Préstamos</h1>
+            <h1>Multi-Store Repuestos</h1>
             <p>Inicia sesión para acceder</p>
         </div>
 
@@ -51,19 +51,7 @@
             </button>
         </form>
 
-        <div class="mt-4 p-3 bg-light rounded" style="font-size: 0.85rem;">
-            <strong>Datos de acceso de demostración:</strong>
-            <div class="mt-2">
-                <span class="badge bg-info">Super Admin</span>
-                <br>Email: <code>superadmin@sistema.com</code>
-                <br>Contraseña: <code>Admin@1234</code>
-            </div>
-            <div class="mt-2">
-                <span class="badge bg-success">Admin</span>
-                <br>Email: <code>admin@empresademo.com</code>
-                <br>Contraseña: <code>Admin@1234</code>
-            </div>
-        </div>
+
     </div>
 </div>
 @endsection

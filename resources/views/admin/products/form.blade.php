@@ -2,7 +2,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="mb-1">{{ $product ? 'Editar producto' : 'Nuevo producto' }}</h1>
-            <p class="text-muted mb-0">Define catálogo, costos y categoría de crédito asociada.</p>
+            <p class="text-muted mb-0">Define catálogo y costos del producto.</p>
         </div>
         <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">Volver</a>
     </div>
@@ -32,17 +32,6 @@
                 <div class="col-md-6">
                     <label class="form-label">SKU</label>
                     <input type="text" name="sku" class="form-control" value="{{ old('sku', $product?->sku) }}" required>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Categoría de crédito</label>
-                    <select name="credit_category_id" class="form-select">
-                        <option value="">Sin categoría</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}" {{ (string) old('credit_category_id', $product?->credit_category_id) === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                        @endforeach
-                    </select>
-                    <small class="text-muted">Si se define, los créditos de este producto heredarán sus reglas.</small>
                 </div>
 
                 <div class="col-md-6">

@@ -6,7 +6,6 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -68,30 +67,6 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Permission::class, 'user_permission', 'user_id', 'permission_id')
                     ->withPivot('company_id');
-    }
-
-    /**
-     * Préstamos creados por este usuario
-     */
-    public function createdLoans(): HasMany
-    {
-        return $this->hasMany(Loan::class, 'created_by');
-    }
-
-    /**
-     * Préstamos aprobados por este usuario
-     */
-    public function approvedLoans(): HasMany
-    {
-        return $this->hasMany(Loan::class, 'approved_by');
-    }
-
-    /**
-     * Pagos registrados por este usuario
-     */
-    public function registeredPayments(): HasMany
-    {
-        return $this->hasMany(LoanPayment::class, 'registered_by');
     }
 
     public function personal(): HasOne

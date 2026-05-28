@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
-use App\Models\CreditCategory;
 use App\Models\Product;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -14,7 +13,7 @@ class ProductController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $query = Product::with('company', 'creditCategory')->latest();
+        $query = Product::with('company')->latest();
 
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->getCurrentCompany()?->id);
@@ -26,11 +25,9 @@ class ProductController extends Controller
     public function create()
     {
         $user = auth()->user();
-        $companyId = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
         return view('admin.products.create', [
             'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
-            'categories' => CreditCategory::when($companyId, fn ($q) => $q->where('company_id', $companyId))->where('active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -44,7 +41,6 @@ class ProductController extends Controller
                 'company_id' => ['nullable', 'exists:companies,id'],
                 'name' => 'required|string|max:255',
                 'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')],
-                'credit_category_id' => ['nullable', 'exists:credit_categories,id'],
                 'description' => 'nullable|string',
                 'unit' => 'required|string|max:50',
                 'cost' => 'required|numeric|min:0',
@@ -73,7 +69,6 @@ class ProductController extends Controller
         return view('admin.products.edit', [
             'product' => $product,
             'companies' => $user->is_super_admin ? Company::orderBy('name')->get() : collect([$user->getCurrentCompany()])->filter(),
-            'categories' => CreditCategory::where('company_id', $product->company_id)->where('active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -89,7 +84,6 @@ class ProductController extends Controller
                 'company_id' => ['nullable', 'exists:companies,id'],
                 'name' => 'required|string|max:255',
                 'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->id)],
-                'credit_category_id' => ['nullable', 'exists:credit_categories,id'],
                 'description' => 'nullable|string',
                 'unit' => 'required|string|max:50',
                 'cost' => 'required|numeric|min:0',

@@ -30,27 +30,6 @@ class Company extends Model
                     ->withPivot('role_id', 'active');
     }
 
-    /**
-     * Préstamos de esta empresa
-     */
-    public function loans(): HasMany
-    {
-        return $this->hasMany(Loan::class);
-    }
-
-    /**
-     * Tipos de préstamos de esta empresa
-     */
-    public function loanTypes(): HasMany
-    {
-        return $this->hasMany(LoanType::class);
-    }
-
-    public function clients(): HasMany
-    {
-        return $this->hasMany(Client::class);
-    }
-
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);
@@ -59,16 +38,6 @@ class Company extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
-    }
-
-    public function creditCategories(): HasMany
-    {
-        return $this->hasMany(CreditCategory::class);
-    }
-
-    public function creditCategoryRules(): HasMany
-    {
-        return $this->hasMany(CreditCategoryRule::class);
     }
 
     public function warehouses(): HasMany
@@ -89,6 +58,11 @@ class Company extends Model
     public function personals(): HasMany
     {
         return $this->hasMany(Personal::class);
+    }
+
+    public function cashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class);
     }
 
     /**
