@@ -53,23 +53,41 @@ return [
     'channels' => [
 
         'stack' => [
-            'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'driver'            => 'stack',
+            'channels'          => ['daily_info', 'daily_error'],
             'ignore_exceptions' => false,
         ],
 
         'single' => [
             'driver' => 'single',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            'path'   => storage_path('logs/laravel.log'),
+            'level'  => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
+        // Captura todo (debug → warning). Genera: info-YYYY-MM-DD.log
+        'daily_info' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/info.log'),
+            'level'  => env('LOG_LEVEL', 'debug'),
+            'days'   => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        // Captura solo errores graves (error → emergency). Genera: error-YYYY-MM-DD.log
+        'daily_error' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/error.log'),
+            'level'  => 'error',
+            'days'   => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
 
         'daily' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'days' => env('LOG_DAILY_DAYS', 14),
+            'path'   => storage_path('logs/laravel.log'),
+            'level'  => env('LOG_LEVEL', 'debug'),
+            'days'   => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
 

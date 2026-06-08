@@ -20,6 +20,10 @@ class CashMovement extends Model
         'advance_return'      => ['label' => 'Dev. de anticipo',    'type' => 'expense'],
         'cash_adjustment_in'  => ['label' => 'Ajuste positivo',     'type' => 'income'],
         'cash_adjustment_out' => ['label' => 'Ajuste negativo',     'type' => 'expense'],
+        'rental_payment'      => ['label' => 'Pago de alquiler',    'type' => 'income'],
+        'rental_deposit'      => ['label' => 'Depósito de alquiler','type' => 'income'],
+        'rental_penalty'      => ['label' => 'Penalización alquiler','type' => 'income'],
+        'rental_deposit_refund' => ['label' => 'Dev. depósito alquiler', 'type' => 'expense'],
     ];
 
     protected $fillable = [
@@ -30,11 +34,28 @@ class CashMovement extends Model
         'type',
         'category',
         'amount',
+        'method',
         'reference_type',
         'reference_id',
         'description',
         'movement_date',
     ];
+
+    const METHOD_LABELS = [
+        'efectivo'      => 'Efectivo',
+        'transferencia' => 'Transferencia bancaria',
+        'tarjeta'       => 'Tarjeta',
+        'cheque'        => 'Cheque',
+        'qr'            => 'QR',
+    ];
+
+    public function getMethodLabelAttribute(): string
+    {
+        if (!$this->method) {
+            return '—';
+        }
+        return self::METHOD_LABELS[$this->method] ?? ucfirst($this->method);
+    }
 
     protected $casts = [
         'amount'        => 'decimal:2',

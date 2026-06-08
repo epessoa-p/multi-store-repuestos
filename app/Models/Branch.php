@@ -21,8 +21,14 @@ class Branch extends Model
         'email',
         'address',
         'manager_name',
+        'color',
         'active',
     ];
+
+    public function getColorOrDefaultAttribute(): string
+    {
+        return $this->color ?: '#6c757d';
+    }
 
     protected $casts = [
         'active' => 'boolean',

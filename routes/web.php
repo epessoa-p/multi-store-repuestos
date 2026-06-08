@@ -4,18 +4,17 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\CargoController;
 use App\Http\Controllers\Admin\PersonalController;
-use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\DocumentTemplates\DocumentTemplateController;
 use Illuminate\Support\Facades\Route;
 
 // Guest routes
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+    Route::get('/login',  [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.store');
 });
 
@@ -23,112 +22,104 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-    // Company selection (multi-empresa)
-    Route::get('/select-company', [LoginController::class, 'selectCompany'])->name('select-company');
-    Route::post('/set-company/{companyId}', [LoginController::class, 'setCompany'])->name('set-company');
+    Route::get('/select-company',             [LoginController::class, 'selectCompany'])->name('select-company');
+    Route::post('/set-company/{companyId}',   [LoginController::class, 'setCompany'])->name('set-company');
 
-    // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Super Admin - Company Management
+    // ── Empresas (solo super_admin) ───────────────────────────────
     Route::middleware('check-role:super_admin')->prefix('admin/companies')->name('companies.')->group(function () {
-        Route::get('/', [CompanyController::class, 'index'])->name('index');
-        Route::get('/create', [CompanyController::class, 'create'])->name('create');
-        Route::post('/', [CompanyController::class, 'store'])->name('store');
-        Route::get('/{company}', [CompanyController::class, 'show'])->name('show');
+        Route::get('/',               [CompanyController::class, 'index'])->name('index');
+        Route::get('/create',         [CompanyController::class, 'create'])->name('create');
+        Route::post('/',              [CompanyController::class, 'store'])->name('store');
+        Route::get('/{company}',      [CompanyController::class, 'show'])->name('show');
         Route::get('/{company}/edit', [CompanyController::class, 'edit'])->name('edit');
-        Route::put('/{company}', [CompanyController::class, 'update'])->name('update');
-        Route::delete('/{company}', [CompanyController::class, 'destroy'])->name('destroy');
+        Route::put('/{company}',      [CompanyController::class, 'update'])->name('update');
+        Route::delete('/{company}',   [CompanyController::class, 'destroy'])->name('destroy');
     });
 
-    // User Management
+    // ── Roles (solo super_admin) ──────────────────────────────────
+    Route::middleware('check-role:super_admin')->prefix('admin/roles')->name('roles.')->group(function () {
+        Route::get('/',           [RoleController::class, 'index'])->name('index');
+        Route::get('/create',     [RoleController::class, 'create'])->name('create');
+        Route::post('/',          [RoleController::class, 'store'])->name('store');
+        Route::get('/{role}',     [RoleController::class, 'show'])->name('show');
+        Route::get('/{role}/edit',[RoleController::class, 'edit'])->name('edit');
+        Route::put('/{role}',     [RoleController::class, 'update'])->name('update');
+        Route::delete('/{role}',  [RoleController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Usuarios ──────────────────────────────────────────────────
+    // IMPORTANTE: /create debe registrarse ANTES de /{user} (wildcard)
     Route::prefix('admin/users')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::get('/create', [UserController::class, 'create'])->name('create');
-        Route::post('/', [UserController::class, 'store'])->name('store');
-        Route::get('/{user}', [UserController::class, 'show'])->name('show');
-        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-        Route::put('/{user}', [UserController::class, 'update'])->name('update');
-        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-        Route::post('/{user}/assign-role/{company}/{role}', [UserController::class, 'assignRole'])->name('assign-role');
+        Route::get('/',    [UserController::class, 'index'])->name('index')->middleware('check-permission:users.view');
+        Route::get('/create', [UserController::class, 'create'])->name('create')->middleware('check-permission:users.create');
+        Route::post('/',      [UserController::class, 'store'])->name('store')->middleware('check-permission:users.create');
+        Route::get('/{user}', [UserController::class, 'show'])->name('show')->middleware('check-permission:users.view');
+        Route::get('/{user}/edit',                           [UserController::class, 'edit'])->name('edit')->middleware('check-permission:users.edit');
+        Route::put('/{user}',                                [UserController::class, 'update'])->name('update')->middleware('check-permission:users.edit');
+        Route::post('/{user}/assign-role/{company}/{role}',  [UserController::class, 'assignRole'])->name('assign-role')->middleware('check-permission:users.edit');
+        Route::delete('/{user}',                             [UserController::class, 'destroy'])->name('destroy')->middleware('check-permission:users.delete');
     });
 
-    // Role Management (Super Admin only)
-    Route::prefix('admin/roles')->name('roles.')->group(function () {
-        Route::get('/', [RoleController::class, 'index'])->name('index');
-        Route::get('/create', [RoleController::class, 'create'])->name('create');
-        Route::post('/', [RoleController::class, 'store'])->name('store');
-        Route::get('/{role}', [RoleController::class, 'show'])->name('show');
-        Route::get('/{role}/edit', [RoleController::class, 'edit'])->name('edit');
-        Route::put('/{role}', [RoleController::class, 'update'])->name('update');
-        Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
-    });
-
-    Route::prefix('admin/cargos')->name('cargos.')->group(function () {
-        Route::get('/', [CargoController::class, 'index'])->name('index');
-        Route::get('/create', [CargoController::class, 'create'])->name('create');
-        Route::post('/', [CargoController::class, 'store'])->name('store');
-        Route::get('/role-permissions/{role}', [CargoController::class, 'rolePermissions'])->name('role-permissions');
-        Route::get('/{cargo}/edit', [CargoController::class, 'edit'])->name('edit');
-        Route::put('/{cargo}', [CargoController::class, 'update'])->name('update');
-        Route::delete('/{cargo}', [CargoController::class, 'destroy'])->name('destroy');
-    });
-
-    Route::prefix('admin/personal')->name('personal.')->group(function () {
-        Route::get('/', [PersonalController::class, 'index'])->name('index');
-        Route::get('/create', [PersonalController::class, 'create'])->name('create');
-        Route::post('/', [PersonalController::class, 'store'])->name('store');
-        Route::get('/{personal}/edit', [PersonalController::class, 'edit'])->name('edit');
-        Route::put('/{personal}', [PersonalController::class, 'update'])->name('update');
-        Route::delete('/{personal}', [PersonalController::class, 'destroy'])->name('destroy');
-    });
-
+    // ── Sucursales ────────────────────────────────────────────────
     Route::prefix('admin/branches')->name('branches.')->group(function () {
-        Route::get('/', [BranchController::class, 'index'])->name('index');
-        Route::get('/create', [BranchController::class, 'create'])->name('create');
-        Route::post('/', [BranchController::class, 'store'])->name('store');
-        Route::get('/{branch}', [BranchController::class, 'show'])->name('show');
-        Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
-        Route::put('/{branch}', [BranchController::class, 'update'])->name('update');
-        Route::delete('/{branch}', [BranchController::class, 'destroy'])->name('destroy');
+        Route::get('/',          [BranchController::class, 'index'])->name('index')->middleware('check-permission:branches.view');
+        Route::get('/create',    [BranchController::class, 'create'])->name('create')->middleware('check-permission:branches.create');
+        Route::post('/',         [BranchController::class, 'store'])->name('store')->middleware('check-permission:branches.create');
+        Route::get('/{branch}',  [BranchController::class, 'show'])->name('show')->middleware('check-permission:branches.view');
+        Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit')->middleware('check-permission:branches.edit');
+        Route::put('/{branch}',      [BranchController::class, 'update'])->name('update')->middleware('check-permission:branches.edit');
+        Route::delete('/{branch}',   [BranchController::class, 'destroy'])->name('destroy')->middleware('check-permission:branches.delete');
     });
 
-    Route::prefix('admin/products')->name('products.')->group(function () {
-        Route::get('/', [ProductController::class, 'index'])->name('index');
-        Route::get('/create', [ProductController::class, 'create'])->name('create');
-        Route::post('/', [ProductController::class, 'store'])->name('store');
-        Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
-        Route::put('/{product}', [ProductController::class, 'update'])->name('update');
-        Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+    // ── Cargos ────────────────────────────────────────────────────
+    Route::prefix('admin/cargos')->name('cargos.')->group(function () {
+        Route::get('/',                        [CargoController::class, 'index'])->name('index')->middleware('check-permission:cargos.view');
+        Route::get('/create',                  [CargoController::class, 'create'])->name('create')->middleware('check-permission:cargos.create');
+        Route::post('/',                       [CargoController::class, 'store'])->name('store')->middleware('check-permission:cargos.create');
+        Route::get('/role-permissions/{role}', [CargoController::class, 'rolePermissions'])->name('role-permissions')->middleware('check-permission:cargos.view');
+        Route::get('/{cargo}/edit',            [CargoController::class, 'edit'])->name('edit')->middleware('check-permission:cargos.edit');
+        Route::put('/{cargo}',                 [CargoController::class, 'update'])->name('update')->middleware('check-permission:cargos.edit');
+        Route::delete('/{cargo}',              [CargoController::class, 'destroy'])->name('destroy')->middleware('check-permission:cargos.delete');
     });
 
-    Route::prefix('admin/warehouses')->name('warehouses.')->group(function () {
-        Route::get('/', [WarehouseController::class, 'index'])->name('index');
-        Route::get('/create', [WarehouseController::class, 'create'])->name('create');
-        Route::post('/', [WarehouseController::class, 'store'])->name('store');
-        Route::get('/{warehouse}', [WarehouseController::class, 'show'])->name('show');
-        Route::get('/{warehouse}/edit', [WarehouseController::class, 'edit'])->name('edit');
-        Route::put('/{warehouse}', [WarehouseController::class, 'update'])->name('update');
-        Route::delete('/{warehouse}', [WarehouseController::class, 'destroy'])->name('destroy');
-        Route::post('/{warehouse}/movements', [WarehouseController::class, 'storeMovement'])->name('movements.store');
+    // ── Personal ──────────────────────────────────────────────────
+    Route::prefix('admin/personal')->name('personal.')->group(function () {
+        Route::get('/',               [PersonalController::class, 'index'])->name('index')->middleware('check-permission:personal.view');
+        Route::get('/create',         [PersonalController::class, 'create'])->name('create')->middleware('check-permission:personal.create');
+        Route::post('/',              [PersonalController::class, 'store'])->name('store')->middleware('check-permission:personal.create');
+        Route::get('/{personal}/edit',[PersonalController::class, 'edit'])->name('edit')->middleware('check-permission:personal.edit');
+        Route::put('/{personal}',     [PersonalController::class, 'update'])->name('update')->middleware('check-permission:personal.edit');
+        Route::delete('/{personal}',  [PersonalController::class, 'destroy'])->name('destroy')->middleware('check-permission:personal.delete');
     });
 
-    // Document Templates
+    // ── Plantillas de documento ───────────────────────────────────
     Route::prefix('document-templates')->name('document-templates.')->group(function () {
-        Route::get('/', [DocumentTemplateController::class, 'index'])->name('index');
-        Route::get('/create', [DocumentTemplateController::class, 'create'])->name('create');
-        Route::post('/', [DocumentTemplateController::class, 'store'])->name('store');
-        Route::get('/{documentTemplate}/download/word', [DocumentTemplateController::class, 'downloadWord'])->name('download.word');
-        Route::get('/{documentTemplate}/export/pdf', [DocumentTemplateController::class, 'exportPdf'])->name('export.pdf');
-        Route::get('/{documentTemplate}', [DocumentTemplateController::class, 'show'])->name('show');
-        Route::get('/{documentTemplate}/edit', [DocumentTemplateController::class, 'edit'])->name('edit');
-        Route::put('/{documentTemplate}', [DocumentTemplateController::class, 'update'])->name('update');
-        Route::delete('/{documentTemplate}', [DocumentTemplateController::class, 'destroy'])->name('destroy');
+        Route::get('/',       [DocumentTemplateController::class, 'index'])->name('index')->middleware('check-permission:document-templates.view');
+        Route::get('/create', [DocumentTemplateController::class, 'create'])->name('create')->middleware('check-permission:document-templates.create');
+        Route::post('/',      [DocumentTemplateController::class, 'store'])->name('store')->middleware('check-permission:document-templates.create');
+        Route::get('/{documentTemplate}/download/word', [DocumentTemplateController::class, 'downloadWord'])->name('download.word')->middleware('check-permission:document-templates.view');
+        Route::get('/{documentTemplate}/export/pdf',    [DocumentTemplateController::class, 'exportPdf'])->name('export.pdf')->middleware('check-permission:document-templates.view');
+        Route::get('/{documentTemplate}',               [DocumentTemplateController::class, 'show'])->name('show')->middleware('check-permission:document-templates.view');
+        Route::get('/{documentTemplate}/edit',          [DocumentTemplateController::class, 'edit'])->name('edit')->middleware('check-permission:document-templates.edit');
+        Route::put('/{documentTemplate}',               [DocumentTemplateController::class, 'update'])->name('update')->middleware('check-permission:document-templates.edit');
+        Route::delete('/{documentTemplate}',            [DocumentTemplateController::class, 'destroy'])->name('destroy')->middleware('check-permission:document-templates.delete');
     });
-
-
 });
+
+    // ── Clientes ──────────────────────────────────────────────────
+    Route::prefix('admin/clients')->name('clients.')->group(function () {
+        Route::get('/',               [ClientController::class, 'index'])->name('index')->middleware('check-permission:clients.view');
+        Route::get('/create',         [ClientController::class, 'create'])->name('create')->middleware('check-permission:clients.create');
+        Route::post('/quick',         [ClientController::class, 'quickStore'])->name('quick-store')->middleware('check-permission:clients.create');
+        Route::post('/',              [ClientController::class, 'store'])->name('store')->middleware('check-permission:clients.create');
+        Route::get('/{client}',       [ClientController::class, 'show'])->name('show')->middleware('check-permission:clients.view');
+        Route::get('/{client}/edit',  [ClientController::class, 'edit'])->name('edit')->middleware('check-permission:clients.edit');
+        Route::put('/{client}',       [ClientController::class, 'update'])->name('update')->middleware('check-permission:clients.edit');
+        Route::delete('/{client}',    [ClientController::class, 'destroy'])->name('destroy')->middleware('check-permission:clients.delete');
+        Route::delete('/documents/{document}', [ClientController::class, 'destroyDocument'])->name('documents.destroy')->middleware('check-permission:clients.edit');
+    });
 
 // Fallback
 Route::redirect('/', '/dashboard');
-

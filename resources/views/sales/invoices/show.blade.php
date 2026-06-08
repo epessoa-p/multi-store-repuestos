@@ -1,0 +1,397 @@
+@extends('layouts.app')
+@section('title', 'Venta: ' . $sale->code)
+@section('page')
+<div class="container-fluid">
+
+    {{-- Print-only top (hidden in screen) --}}
+    <div class="print-header d-none">
+        <h3 class="fw-bold mb-1">VR Motors — Repuestos &amp; Accesorios</h3>
+        <p class="mb-0 text-muted small">Comprobante de venta</p>
+    </div>
+
+    {{-- ── HEADER CARD ──────────────────────────────────────────────── --}}
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden no-print-shadow">
+        <div style="height:6px;background:linear-gradient(90deg,var(--brand-red) 0%,#ff4d4d 50%,transparent 100%);"></div>
+        <div class="card-body p-4">
+            <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                        <h1 class="mb-0 fw-bold fs-4">{{ $sale->code }}</h1>
+                        <span class="badge bg-{{ $sale->sale_type_color }}-subtle text-{{ $sale->sale_type_color }} border border-{{ $sale->sale_type_color }}-subtle">
+                            {{ $sale->sale_type_label }}
+                        </span>
+                        <span class="badge bg-{{ $sale->payment_status_color }}-subtle text-{{ $sale->payment_status_color }} border border-{{ $sale->payment_status_color }}-subtle">
+                            {{ $sale->payment_status_label }}
+                        </span>
+                        @if($sale->status === 'cancelled')
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Anulada</span>
+                        @endif
+                        @if($fullyReturned)
+                        <span class="badge bg-dark text-white"><i class="bi bi-arrow-return-left me-1"></i>Devuelta</span>
+                        @elseif($hasReturns)
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-arrow-return-left me-1"></i>Devolución parcial</span>
+                        @endif
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 text-muted small mt-1">
+                        <span><i class="bi bi-person me-1"></i>{{ $sale->client_name }}</span>
+                        @if($sale->client?->id_number)
+                        <span><i class="bi bi-card-text me-1"></i>{{ $sale->client->id_number }}</span>
+                        @endif
+                        @if($sale->client?->phone)
+                        <span><i class="bi bi-telephone me-1"></i>{{ $sale->client->phone }}</span>
+                        @endif
+                        @if($sale->branch)
+                        <span><i class="bi bi-building me-1"></i>{{ $sale->branch->name }}</span>
+                        @endif
+                        <span><i class="bi bi-calendar3 me-1"></i>{{ $sale->sale_date->format('d/m/Y') }}</span>
+                        @if($sale->createdBy)
+                        <span><i class="bi bi-person-badge me-1"></i>{{ $sale->createdBy->name }}</span>
+                        @endif
+                        @if($sale->session?->cashRegister)
+                        <span><i class="bi bi-safe2 me-1"></i>{{ $sale->session->cashRegister->name }}</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap no-print">
+                    <button onclick="window.print()" class="btn btn-light border btn-sm">
+                        <i class="bi bi-printer me-1"></i>Imprimir
+                    </button>
+                    @if($sale->status === 'completed' && !$fullyReturned && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sale-returns.create', auth()->user()->getCurrentCompany())))
+                    <a href="{{ route('sale-returns.create', $sale) }}" class="btn btn-light border btn-sm">
+                        <i class="bi bi-arrow-return-left me-1"></i>Devolver
+                    </a>
+                    @endif
+                    @if($sale->status === 'completed' && $sale->payments->isEmpty())
+                        @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.delete', auth()->user()->getCurrentCompany()))
+                        <form action="{{ route('sales.cancel', $sale) }}" method="POST" class="d-inline"
+                              onsubmit="return confirm('¿Anular la venta {{ addslashes($sale->code) }}? Esta acción no se puede deshacer.')">
+                            @csrf
+                            <button class="btn btn-sm btn-light border text-danger">
+                                <i class="bi bi-x-circle me-1"></i>Anular
+                            </button>
+                        </form>
+                        @endif
+                    @endif
+                    @if($sale->sale_type === 'credit' && $sale->balance > 0)
+                        @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', auth()->user()->getCurrentCompany()))
+                        <a href="{{ route('credit.cobranza') }}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-cash-coin me-1"></i>Cobrar
+                        </a>
+                        @endif
+                    @endif
+                    <a href="{{ route('sales.index') }}" class="btn btn-light border btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        {{-- ── ITEMS + TOTALS + INSTALLMENTS + PAYMENTS ──────────────── --}}
+        <div class="col-lg-8">
+
+            {{-- Items table --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2 text-muted"></i>Productos vendidos</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0" style="font-size:.85rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4 py-3 fw-semibold text-muted" style="font-size:.72rem;">Producto</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.72rem;">Cantidad</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.72rem;">Precio unit.</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.72rem;">Descuento</th>
+                                    <th class="py-3 fw-semibold text-muted text-end pe-4" style="font-size:.72rem;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($sale->items as $item)
+                                <tr class="border-bottom border-light">
+                                    <td class="ps-4 py-3">
+                                        <div class="fw-semibold small">{{ $item->product?->name ?: '—' }}</div>
+                                        @if($item->product)
+                                        <small class="text-muted">{{ $item->product->sku }}</small>
+                                        @endif
+                                    </td>
+                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="py-3 text-end small">${{ number_format($item->unit_price, 2) }}</td>
+                                    <td class="py-3 text-end small text-muted">
+                                        @if($item->discount > 0) ${{ number_format($item->discount, 2) }} @else — @endif
+                                    </td>
+                                    <td class="py-3 text-end fw-semibold small pe-4">
+                                        ${{ number_format($item->quantity * $item->unit_price - ($item->discount ?? 0), 2) }}
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">Sin items.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top px-4 py-3">
+                    <div class="row justify-content-end">
+                        <div class="col-md-5">
+                            @php
+                                $itemsSubtotal = $sale->items->sum(fn($i) => $i->quantity * $i->unit_price - ($i->discount ?? 0));
+                            @endphp
+                            <div class="d-flex justify-content-between mb-1 small text-muted">
+                                <span>Subtotal</span>
+                                <span>${{ number_format($itemsSubtotal, 2) }}</span>
+                            </div>
+                            @if($sale->discount)
+                            <div class="d-flex justify-content-between mb-1 small text-muted">
+                                <span>Descuento global</span>
+                                <span>-${{ number_format($sale->discount, 2) }}</span>
+                            </div>
+                            @endif
+                            @if($sale->tax)
+                            <div class="d-flex justify-content-between mb-1 small text-muted">
+                                <span>Impuesto</span>
+                                <span>${{ number_format($sale->tax, 2) }}</span>
+                            </div>
+                            @endif
+                            @if($hasReturns)
+                            <div class="d-flex justify-content-between mb-1 small text-danger">
+                                <span><i class="bi bi-arrow-return-left me-1"></i>Devoluciones</span>
+                                <span>−${{ number_format($totalReturned, 2) }}</span>
+                            </div>
+                            @endif
+                            <div class="d-flex justify-content-between fw-bold border-top pt-2">
+                                <span>Total {{ $hasReturns ? 'neto' : '' }}</span>
+                                <span>${{ number_format($sale->total, 2) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small text-success mt-1">
+                                <span>Pagado</span>
+                                <span>${{ number_format($sale->paid_amount, 2) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold border-top pt-2 {{ $sale->balance > 0 ? 'text-danger' : 'text-muted' }}">
+                                <span>Saldo</span>
+                                <span>${{ number_format($sale->balance, 2) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Installments (credit only) --}}
+            @if($sale->sale_type === 'credit' && $sale->installments->isNotEmpty())
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar2-check me-2 text-muted"></i>Cronograma de cuotas</h6>
+                    <span class="badge bg-light text-muted border">{{ $sale->installments->count() }} cuotas</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0" style="font-size:.83rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4 py-3 fw-semibold text-muted" style="font-size:.7rem;">#</th>
+                                    <th class="py-3 fw-semibold text-muted" style="font-size:.7rem;">Vencimiento</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.7rem;">Monto</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.7rem;">Pagado</th>
+                                    <th class="py-3 fw-semibold text-muted text-end" style="font-size:.7rem;">Saldo</th>
+                                    <th class="py-3 fw-semibold text-muted pe-4" style="font-size:.7rem;">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($sale->installments as $inst)
+                                <tr class="border-bottom border-light">
+                                    <td class="ps-4 py-2 small">{{ $inst->number }}</td>
+                                    <td class="py-2 small {{ $inst->is_overdue ? 'text-danger fw-semibold' : '' }}">
+                                        {{ $inst->due_date->format('d/m/Y') }}
+                                        @if($inst->is_overdue)
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size:.65rem;">VENCIDA</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-2 text-end small">${{ number_format($inst->amount, 2) }}</td>
+                                    <td class="py-2 text-end small text-success">${{ number_format($inst->paid_amount, 2) }}</td>
+                                    <td class="py-2 text-end fw-semibold small {{ $inst->balance > 0 ? 'text-danger' : 'text-muted' }}">
+                                        ${{ number_format($inst->balance, 2) }}
+                                    </td>
+                                    <td class="py-2 pe-4">
+                                        <span class="badge bg-{{ $inst->status_color }}-subtle text-{{ $inst->status_color }} border border-{{ $inst->status_color }}-subtle" style="font-size:.68rem;">
+                                            {{ $inst->status_label }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            {{-- Payments history --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-2 text-muted"></i>Pagos registrados</h6>
+                    <span class="badge bg-light text-muted border">{{ $sale->payments->count() }}</span>
+                </div>
+                <div class="card-body p-0">
+                    @forelse($sale->payments as $payment)
+                    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-light">
+                        <div>
+                            <div class="fw-semibold small">${{ number_format($payment->amount, 2) }}</div>
+                            <div class="text-muted" style="font-size:.78rem;">
+                                {{ $payment->payment_date->format('d/m/Y') }}
+                                @if($payment->method) &middot; {{ ucfirst($payment->method) }} @endif
+                                @if($payment->reference) &middot; Ref: {{ $payment->reference }} @endif
+                            </div>
+                        </div>
+                        <div class="text-muted small">{{ $payment->user?->name ?: '—' }}</div>
+                    </div>
+                    @empty
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-cash-coin fs-2 d-block mb-2 opacity-25"></i>
+                        Sin pagos registrados aún.
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- Devoluciones --}}
+            @if($hasReturns)
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-arrow-return-left me-2 text-muted"></i>Devoluciones</h6>
+                    <span class="badge bg-dark text-white">−${{ number_format($totalReturned, 2) }}</span>
+                </div>
+                <div class="card-body p-0">
+                    @foreach($sale->returns as $ret)
+                    <a href="{{ route('sale-returns.show', $ret) }}"
+                       class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-light text-decoration-none text-dark">
+                        <div>
+                            <div class="fw-semibold small">{{ $ret->code }}</div>
+                            <div class="text-muted" style="font-size:.78rem;">
+                                {{ $ret->return_date->format('d/m/Y') }} &middot; {{ $ret->refund_method_label }}
+                            </div>
+                        </div>
+                        <div class="fw-semibold small text-danger">−${{ number_format($ret->total, 2) }}</div>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+        </div>
+
+        {{-- ── SIDEBAR INFO ────────────────────────────────────────────── --}}
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2 text-muted"></i>Información</h6>
+                </div>
+                <div class="card-body p-4">
+                    <dl class="row g-2 small mb-0">
+                        <dt class="col-5 text-muted fw-normal">Código</dt>
+                        <dd class="col-7 mb-0 fw-semibold">{{ $sale->code }}</dd>
+                        <dt class="col-5 text-muted fw-normal">Tipo</dt>
+                        <dd class="col-7 mb-0">{{ $sale->sale_type_label }}</dd>
+                        <dt class="col-5 text-muted fw-normal">Cliente</dt>
+                        <dd class="col-7 mb-0">{{ $sale->client_name }}</dd>
+                        <dt class="col-5 text-muted fw-normal">Sucursal</dt>
+                        <dd class="col-7 mb-0">{{ $sale->branch?->name ?? '—' }}</dd>
+                        <dt class="col-5 text-muted fw-normal">Fecha</dt>
+                        <dd class="col-7 mb-0">{{ $sale->sale_date->format('d/m/Y') }}</dd>
+                        <dt class="col-5 text-muted fw-normal">Creado por</dt>
+                        <dd class="col-7 mb-0">{{ $sale->createdBy?->name ?? '—' }}</dd>
+                        @if($sale->session?->cashRegister)
+                        <dt class="col-5 text-muted fw-normal">Caja</dt>
+                        <dd class="col-7 mb-0">{{ $sale->session->cashRegister->name }}</dd>
+                        @endif
+                        <dt class="col-5 text-muted fw-normal">Registrado</dt>
+                        <dd class="col-7 mb-0">{{ $sale->created_at->format('d/m/Y H:i') }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if($sale->balance > 0 && $sale->status !== 'cancelled')
+            <div class="card border-0 shadow-sm" style="border-left:4px solid var(--brand-red) !important;">
+                <div class="card-body p-4">
+                    <div class="text-muted small mb-1">Saldo pendiente</div>
+                    <div class="fw-bold text-danger fs-4">${{ number_format($sale->balance, 2) }}</div>
+                    @if($sale->sale_type === 'credit')
+                        @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', auth()->user()->getCurrentCompany()))
+                        <a href="{{ route('credit.cobranza') }}" class="btn btn-primary btn-sm w-100 mt-3 no-print">
+                            <i class="bi bi-cash-coin me-1"></i>Ir a cobranza
+                        </a>
+                        @endif
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            {{-- Datos del cliente --}}
+            @if($sale->client)
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-person-vcard me-2 text-muted"></i>Datos del cliente</h6>
+                </div>
+                <div class="card-body p-4">
+                    <dl class="row g-2 small mb-3">
+                        <dt class="col-5 text-muted fw-normal">Nombre</dt>
+                        <dd class="col-7 mb-0 fw-semibold">{{ $sale->client->full_name }}</dd>
+                        @if($sale->client->id_number)
+                        <dt class="col-5 text-muted fw-normal">Documento</dt>
+                        <dd class="col-7 mb-0">{{ $sale->client->id_number }}</dd>
+                        @endif
+                        @if($sale->client->phone)
+                        <dt class="col-5 text-muted fw-normal">Teléfono</dt>
+                        <dd class="col-7 mb-0">
+                            <a href="tel:{{ $sale->client->phone }}" class="text-decoration-none">{{ $sale->client->phone }}</a>
+                        </dd>
+                        @endif
+                        @if($sale->client->email)
+                        <dt class="col-5 text-muted fw-normal">Email</dt>
+                        <dd class="col-7 mb-0 text-truncate">
+                            <a href="mailto:{{ $sale->client->email }}" class="text-decoration-none">{{ $sale->client->email }}</a>
+                        </dd>
+                        @endif
+                        @if($sale->client->address)
+                        <dt class="col-5 text-muted fw-normal">Dirección</dt>
+                        <dd class="col-7 mb-0">{{ $sale->client->address }}</dd>
+                        @endif
+                    </dl>
+                    <a href="{{ route('clients.show', $sale->client) }}" class="btn btn-light border btn-sm w-100 no-print">
+                        <i class="bi bi-person-lines-fill me-1"></i>Ver ficha del cliente
+                    </a>
+                </div>
+            </div>
+            @else
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body p-4 text-center text-muted small">
+                    <i class="bi bi-person d-block fs-3 mb-2 opacity-25"></i>
+                    Cliente general
+                </div>
+            </div>
+            @endif
+
+        </div>
+
+    </div>
+
+</div>
+
+@push('styles')
+<style>
+@media print {
+    .no-print, .no-print * { display: none !important; }
+    .app-sidebar, .app-topbar, .btn { display: none !important; }
+    .app-main { padding: 0 !important; }
+    .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+    .print-header { display: block !important; margin-bottom: 1rem; }
+    .no-print-shadow { box-shadow: none !important; }
+}
+</style>
+@endpush
+
+@endsection

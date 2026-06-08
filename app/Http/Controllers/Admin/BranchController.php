@@ -55,6 +55,7 @@ class BranchController extends Controller
                 'email' => 'nullable|email|max:255',
                 'address' => 'nullable|string|max:255',
                 'manager_name' => 'nullable|string|max:255',
+                'color' => 'nullable|string|max:7',
                 'warehouse_id' => ['required', 'exists:warehouses,id'],
                 'active' => 'sometimes|boolean',
             ]);
@@ -77,6 +78,7 @@ class BranchController extends Controller
                 'email' => $validated['email'] ?? null,
                 'address' => $validated['address'] ?? null,
                 'manager_name' => $validated['manager_name'] ?? null,
+                'color' => $validated['color'] ?? null,
                 'active' => request()->boolean('active', true),
             ]);
 
@@ -122,6 +124,7 @@ class BranchController extends Controller
                 'email' => 'nullable|email|max:255',
                 'address' => 'nullable|string|max:255',
                 'manager_name' => 'nullable|string|max:255',
+                'color' => 'nullable|string|max:7',
                 'warehouse_id' => ['required', 'exists:warehouses,id'],
                 'active' => 'sometimes|boolean',
             ]);

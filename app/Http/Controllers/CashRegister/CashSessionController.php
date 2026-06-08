@@ -114,6 +114,7 @@ class CashSessionController extends Controller
             'type'          => ['required', Rule::in(['income', 'expense'])],
             'category'      => ['required', Rule::in($categoryKeys)],
             'amount'        => 'required|numeric|min:0.01',
+            'method'        => 'nullable|string|max:50',
             'description'   => 'nullable|string|max:500',
             'movement_date' => 'required|date',
         ]);

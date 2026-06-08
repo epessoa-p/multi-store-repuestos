@@ -28,7 +28,11 @@
                     <tbody>
                         @forelse($branches as $branch)
                             <tr>
-                                <td>{{ $branch->name }}</td>
+                                <td>
+                                    <span class="d-inline-block rounded-circle align-middle me-2"
+                                          style="width:12px;height:12px;background:{{ $branch->color_or_default }};border:1px solid rgba(0,0,0,.1);"></span>
+                                    {{ $branch->name }}
+                                </td>
                                 <td>{{ $branch->code ?: '-' }}</td>
                                 <td>{{ $branch->company?->name ?: '-' }}</td>
                                 <td>{{ $branch->manager_name ?: '-' }}</td>

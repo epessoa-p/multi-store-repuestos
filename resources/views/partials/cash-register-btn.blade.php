@@ -120,7 +120,7 @@
         {{-- Caja CERRADA con cajas disponibles --}}
         <button class="btn btn-cash-closed" type="button"
                 data-bs-toggle="modal" data-bs-target="#modalAbrirCajaNavbar">
-            <i class="bi bi-cash-register me-1"></i> Abrir caja
+            Abrir caja
         </button>
 
         {{-- Modal apertura --}}

@@ -236,6 +236,16 @@
                             </div>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label fw-semibold">Medio de pago</label>
+                            <select name="method" class="form-select">
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia bancaria</option>
+                                <option value="tarjeta">Tarjeta</option>
+                                <option value="qr">QR</option>
+                                <option value="cheque">Cheque</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
                             <input type="datetime-local" name="movement_date" class="form-control" required
                                    value="{{ now()->format('Y-m-d\TH:i') }}">

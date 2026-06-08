@@ -1,14 +1,14 @@
 @extends('layouts.auth')
 
-@section('title', 'Login - Multi-Store Repuestos')
+@section('title', 'Acceso · VR Motors')
 
 @section('content')
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
-            <div class="logo"><i class="bi bi-graph-up"></i></div>
-            <h1>Multi-Store Repuestos</h1>
-            <p>Inicia sesión para acceder</p>
+            <div class="logo"><img src="{{ asset('images/logo_blanco_sm.png') }}" alt="VR Motors"></div>
+            <h1>VR <span class="brand-accent">MOTORS</span></h1>
+            <p>Accede al sistema de gestión</p>
         </div>
 
         @if($errors->any())
@@ -24,11 +24,12 @@
             @csrf
 
             <div class="form-group">
-                <label for="email" class="form-label">Email</label>
+                <label for="email" class="form-label">Usuario o Email</label>
                 <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                    <input type="email" id="email" name="email" class="form-control @error('email') is-invalid @enderror"
-                           placeholder="correo@ejemplo.com" value="{{ old('email') }}" required>
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" id="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                           placeholder="usuario o correo@ejemplo.com" value="{{ old('email') }}"
+                           autocomplete="username" required>
                 </div>
             </div>
 

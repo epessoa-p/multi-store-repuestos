@@ -9,81 +9,511 @@
 <div class="app-shell d-flex">
     <aside class="app-sidebar">
         <div class="sidebar-brand">
-            <button class="btn btn-link p-0 me-2 d-lg-none text-dark" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebarMobile" aria-controls="appSidebarMobile">
+            <button class="btn btn-link p-0 me-2 d-lg-none text-white" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebarMobile" aria-controls="appSidebarMobile">
                 <i class="bi bi-list fs-4"></i>
             </button>
-            <div class="brand-icon"><i class="bi bi-grid-1x2-fill"></i></div>
+            <div class="brand-icon"><img src="{{ asset('images/logo_blanco_sm.png') }}" alt="VR Motors"></div>
             <div>
-                <div class="brand-title">MATERIAL ADMIN PRO</div>
-                <small class="text-muted">Multi-Store Repuestos</small>
+                <div class="brand-title">VR <span class="brand-accent">MOTORS</span></div>
+                <small class="brand-subtitle">Repuestos &amp; Accesorios</small>
             </div>
         </div>
 
-        <div class="sidebar-section-title">Interface</div>
+        <div class="sidebar-section-title">General</div>
         <ul class="nav flex-column gap-1">
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                    <i class="bi bi-house"></i> Overview
+                    <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('document-templates.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">
                     <i class="bi bi-file-earmark-ruled"></i> Plantillas
                 </a>
             </li>
+            @endif
         </ul>
 
-        <div class="sidebar-section-title mt-4">Administracion</div>
+        @if(auth()->user()->is_super_admin)
+        <div class="sidebar-section-title mt-4">Sistema</div>
         <ul class="nav flex-column gap-1">
-            @if(auth()->user()->is_super_admin)
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">
-                        <i class="bi bi-building"></i> Empresas
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">
-                        <i class="bi bi-shield-lock"></i> Roles
-                    </a>
-                </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">
+                    <i class="bi bi-building"></i> Empresas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">
+                    <i class="bi bi-shield-lock"></i> Roles
+                </a>
+            </li>
+        </ul>
+        @endif
+
+        <div class="sidebar-section-title mt-4">Administración</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                    <i class="bi bi-person-gear"></i> Usuarios
+                </a>
+            </li>
             @endif
-            @if(auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
-                <li class="nav-item">
-                    <a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-person-gear"></i> Usuarios
-                    </a>
-                </li>
-            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('branches.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">
                     <i class="bi bi-diagram-2"></i> Sucursales
                 </a>
             </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('cargos.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">
+                    <i class="bi bi-briefcase"></i> Cargos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('personal.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">
+                    <i class="bi bi-person-vcard"></i> Personal
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('cash-registers.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">
+                    <i class="bi bi-safe2"></i> Cajas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('cash.movements') ? 'active' : '' }}" href="{{ route('cash.movements') }}">
+                    <i class="bi bi-arrow-left-right"></i> Movimientos
+                </a>
+            </li>
+            @endif
+        </ul>
+
+        @php
+            $canSales = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('pos.access', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('quotes.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('sale-returns.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('clients.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('vehicles.view', $currentCompany);
+            $canCredit = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('credit.collect', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('credit-applications.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('payment-plans.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('credit-reports.view', $currentCompany);
+        @endphp
+        @if($canSales)
+        <div class="sidebar-section-title mt-4">Ventas</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">
+                    <i class="bi bi-graph-up-arrow"></i> Dashboard
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('clients.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" href="{{ route('clients.index') }}">
+                    <i class="bi bi-people"></i> Clientes
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('pos.access', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('pos.*') ? 'active' : '' }}" href="{{ route('pos.index') }}">
+                    <i class="bi bi-bag-check"></i> Punto de Venta
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('sales.index') || request()->routeIs('sales.create') || request()->routeIs('sales.show') ? 'active' : '' }}" href="{{ route('sales.index') }}">
+                    <i class="bi bi-cart"></i> Ventas
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('quotes.create', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('quotes.pos') ? 'active' : '' }}" href="{{ route('quotes.pos') }}">
+                    <i class="bi bi-calculator"></i> Punto de Cotización
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('quotes.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ (request()->routeIs('quotes.*') && !request()->routeIs('quotes.pos')) ? 'active' : '' }}" href="{{ route('quotes.index') }}">
+                    <i class="bi bi-file-earmark-text"></i> Cotizaciones
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sale-returns.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('sale-returns.*') ? 'active' : '' }}" href="{{ route('sale-returns.index') }}">
+                    <i class="bi bi-arrow-return-left"></i> Devoluciones
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('vehicles.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" href="{{ route('vehicles.index') }}">
+                    <i class="bi bi-bicycle"></i> Vehículos
+                </a>
+            </li>
+            @endif
+        </ul>
+        @endif
+
+        @if($canCredit)
+        <div class="sidebar-section-title mt-4">Créditos</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit-applications.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit-applications.*') ? 'active' : '' }}" href="{{ route('credit-applications.index') }}">
+                    <i class="bi bi-file-earmark-medical"></i> Solicitudes
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit.sales') ? 'active' : '' }}" href="{{ route('credit.sales') }}">
+                    <i class="bi bi-credit-card"></i> Ventas a Crédito
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('payment-plans.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('payment-plans.*') ? 'active' : '' }}" href="{{ route('payment-plans.index') }}">
+                    <i class="bi bi-list-check"></i> Planes de Pago
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit.cuotas') ? 'active' : '' }}" href="{{ route('credit.cuotas') }}">
+                    <i class="bi bi-calendar-check"></i> Cuotas
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit.cobranza') ? 'active' : '' }}" href="{{ route('credit.cobranza') }}">
+                    <i class="bi bi-cash-coin"></i> Cobranza
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit.morosos') ? 'active' : '' }}" href="{{ route('credit.morosos') }}">
+                    <i class="bi bi-exclamation-octagon"></i> Morosos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit-reports.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('credit.reports') ? 'active' : '' }}" href="{{ route('credit.reports') }}">
+                    <i class="bi bi-graph-up"></i> Reportes
+                </a>
+            </li>
+            @endif
+        </ul>
+        @endif
+
+        @php
+            $canWorkshop = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('services.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('mechanics.view', $currentCompany);
+        @endphp
+        @if($canWorkshop)
+        <div class="sidebar-section-title mt-4">Taller</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('workshop.dashboard') ? 'active' : '' }}" href="{{ route('workshop.dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.create', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('workshop.reception') ? 'active' : '' }}" href="{{ route('workshop.reception') }}">
+                    <i class="bi bi-box-arrow-in-down"></i> Recepción
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('workshop.orders.*') ? 'active' : '' }}" href="{{ route('workshop.orders.index') }}">
+                    <i class="bi bi-tools"></i> Órdenes de Trabajo
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('services.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('services.*') ? 'active' : '' }}" href="{{ route('services.index') }}">
+                    <i class="bi bi-wrench-adjustable"></i> Servicios
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('mechanics.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('mechanics.*') ? 'active' : '' }}" href="{{ route('mechanics.index') }}">
+                    <i class="bi bi-person-gear"></i> Mecánicos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('workshop.deliveries.*') ? 'active' : '' }}" href="{{ route('workshop.deliveries.index') }}">
+                    <i class="bi bi-truck"></i> Entregas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('workshop.history') ? 'active' : '' }}" href="{{ route('workshop.history') }}">
+                    <i class="bi bi-clock-history"></i> Historial
+                </a>
+            </li>
+            @endif
+        </ul>
+        @endif
+
+        @php
+            $canMotos = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('moto-units.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('moto-sales.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('moto-brands.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('moto-models.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('warranties.view', $currentCompany);
+        @endphp
+        @if($canMotos)
+        <div class="sidebar-section-title mt-4">Motos</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-brands.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('moto-brands.*') ? 'active' : '' }}" href="{{ route('moto-brands.index') }}">
+                    <i class="bi bi-tag"></i> Marcas
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-models.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('moto-models.*') ? 'active' : '' }}" href="{{ route('moto-models.index') }}">
+                    <i class="bi bi-bicycle"></i> Modelos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-units.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('moto-units.*') ? 'active' : '' }}" href="{{ route('moto-units.index') }}">
+                    <i class="bi bi-box-seam"></i> Inventario de Motos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-sales.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('moto-sales.*') ? 'active' : '' }}" href="{{ route('moto-sales.index') }}">
+                    <i class="bi bi-cart-check"></i> Ventas de Motos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-deliveries.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('moto-deliveries.*') ? 'active' : '' }}" href="{{ route('moto-deliveries.index') }}">
+                    <i class="bi bi-truck"></i> Entregas
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warranties.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('warranties.*') ? 'active' : '' }}" href="{{ route('warranties.index') }}">
+                    <i class="bi bi-shield-check"></i> Garantías
+                </a>
+            </li>
+            @endif
+        </ul>
+        @endif
+
+        @php
+            $canRentals = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('rentals.view', $currentCompany);
+        @endphp
+        @if($canRentals)
+        <div class="sidebar-section-title mt-4">Alquileres</div>
+        <ul class="nav flex-column gap-1">
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.dashboard') ? 'active' : '' }}" href="{{ route('rentals.dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.calendar') ? 'active' : '' }}" href="{{ route('rentals.calendar') }}">
+                    <i class="bi bi-calendar3"></i> Calendario
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.reservations') || request()->routeIs('rentals.create') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}">
+                    <i class="bi bi-bookmark-plus"></i> Reservas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.contracts') ? 'active' : '' }}" href="{{ route('rentals.contracts') }}">
+                    <i class="bi bi-file-earmark-text"></i> Contratos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.deliveries') ? 'active' : '' }}" href="{{ route('rentals.deliveries') }}">
+                    <i class="bi bi-box-arrow-up"></i> Entregas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.active') ? 'active' : '' }}" href="{{ route('rentals.active') }}">
+                    <i class="bi bi-bicycle"></i> En curso
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.returns') ? 'active' : '' }}" href="{{ route('rentals.returns') }}">
+                    <i class="bi bi-box-arrow-in-down"></i> Devoluciones
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.collections') ? 'active' : '' }}" href="{{ route('rentals.collections') }}">
+                    <i class="bi bi-cash-stack"></i> Cobros
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.payments') ? 'active' : '' }}" href="{{ route('rentals.payments') }}">
+                    <i class="bi bi-cash-coin"></i> Pagos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.penalties') ? 'active' : '' }}" href="{{ route('rentals.penalties') }}">
+                    <i class="bi bi-exclamation-triangle"></i> Penalizaciones
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('rentals.history') ? 'active' : '' }}" href="{{ route('rentals.history') }}">
+                    <i class="bi bi-clock-history"></i> Historial
+                </a>
+            </li>
+        </ul>
+        @endif
+
+        @php
+            $canPurchases = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('purchases-dashboard.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('suppliers.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('purchase-orders.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('goods-receipts.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('purchases.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('accounts-payable.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('treasury.view', $currentCompany);
+        @endphp
+        @if($canPurchases)
+        <div class="sidebar-section-title mt-4">Compras</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases-dashboard.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('purchases-dashboard.*') ? 'active' : '' }}" href="{{ route('purchases-dashboard.index') }}">
+                    <i class="bi bi-graph-up-arrow"></i> Dashboard
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('suppliers.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}" href="{{ route('suppliers.index') }}">
+                    <i class="bi bi-truck"></i> Proveedores
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchase-orders.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('purchase-orders.*') ? 'active' : '' }}" href="{{ route('purchase-orders.index') }}">
+                    <i class="bi bi-file-earmark-text"></i> Órdenes de Compra
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('goods-receipts.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('goods-receipts.*') ? 'active' : '' }}" href="{{ route('goods-receipts.index') }}">
+                    <i class="bi bi-box-arrow-in-down"></i> Recepciones
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('purchases.*') ? 'active' : '' }}" href="{{ route('purchases.index') }}">
+                    <i class="bi bi-receipt"></i> Compras
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('accounts-payable.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('accounts-payable.*') ? 'active' : '' }}" href="{{ route('accounts-payable.index') }}">
+                    <i class="bi bi-cash-stack"></i> Cuentas por Pagar
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('treasury.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('treasury.*') ? 'active' : '' }}" href="{{ route('treasury.index') }}">
+                    <i class="bi bi-bank"></i> Tesorería
+                </a>
+            </li>
+            @endif
+        </ul>
+        @endif
+
+        <div class="sidebar-section-title mt-4">Inventario</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">
                     <i class="bi bi-box-seam"></i> Productos
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">
+                    <i class="bi bi-clipboard-data"></i> Inventario
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
+            <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
                     <i class="bi bi-building-add"></i> Almacenes
                 </a>
             </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">
-                    <i class="bi bi-cash-register"></i> Cajas
+                <a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}">
+                    <i class="bi bi-tags"></i> Categorías
                 </a>
             </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">
-                    <i class="bi bi-briefcase"></i> Cargos
+                <a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}">
+                    <i class="bi bi-award"></i> Marcas
                 </a>
             </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">
-                    <i class="bi bi-person-vcard"></i> Personal
+                <a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}">
+                    <i class="bi bi-journal-text"></i> Kardex
                 </a>
             </li>
+            @endif
         </ul>
     </aside>
 
@@ -177,27 +607,218 @@
 
 <div class="offcanvas offcanvas-start" tabindex="-1" id="appSidebarMobile" aria-labelledby="appSidebarMobileLabel">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="appSidebarMobileLabel">Menu</h5>
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="appSidebarMobileLabel">
+            <span class="brand-icon"><img src="{{ asset('images/logo_blanco_sm.png') }}" alt="VR Motors"></span>
+            VR <span class="brand-accent">MOTORS</span>
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body p-0">
         <nav class="p-3">
+            <div class="sidebar-section-title">General</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('document-templates.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}"><i class="bi bi-file-earmark-ruled me-2"></i>Plantillas</a></li>
+                @endif
+            </ul>
+
+            @if(auth()->user()->is_super_admin)
+            <div class="sidebar-section-title">Sistema</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                <li><a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}"><i class="bi bi-building me-2"></i>Empresas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}"><i class="bi bi-shield-lock me-2"></i>Roles</a></li>
+            </ul>
+            @endif
+
+            <div class="sidebar-section-title">Administración</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}"><i class="bi bi-person-gear me-2"></i>Usuarios</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('branches.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}"><i class="bi bi-diagram-2 me-2"></i>Sucursales</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('cargos.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}"><i class="bi bi-briefcase me-2"></i>Cargos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('personal.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}"><i class="bi bi-person-vcard me-2"></i>Personal</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('cash-registers.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}"><i class="bi bi-safe2 me-2"></i>Cajas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('cash.movements') ? 'active' : '' }}" href="{{ route('cash.movements') }}"><i class="bi bi-arrow-left-right me-2"></i>Movimientos</a></li>
+                @endif
+            </ul>
+
+            @if($canSales)
+            <div class="sidebar-section-title">Ventas</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}"><i class="bi bi-graph-up-arrow me-2"></i>Dashboard</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('clients.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('clients.*') ? 'active' : '' }}" href="{{ route('clients.index') }}"><i class="bi bi-people me-2"></i>Clientes</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('pos.access', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('pos.*') ? 'active' : '' }}" href="{{ route('pos.index') }}"><i class="bi bi-bag-check me-2"></i>Punto de Venta</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('sales.index') || request()->routeIs('sales.create') || request()->routeIs('sales.show') ? 'active' : '' }}" href="{{ route('sales.index') }}"><i class="bi bi-cart me-2"></i>Ventas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('quotes.view', $currentCompany))
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('quotes.create', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('quotes.pos') ? 'active' : '' }}" href="{{ route('quotes.pos') }}"><i class="bi bi-calculator me-2"></i>Punto de Cotización</a></li>
+                @endif
+                <li><a class="nav-link app-link {{ (request()->routeIs('quotes.*') && !request()->routeIs('quotes.pos')) ? 'active' : '' }}" href="{{ route('quotes.index') }}"><i class="bi bi-file-earmark-text me-2"></i>Cotizaciones</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sale-returns.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('sale-returns.*') ? 'active' : '' }}" href="{{ route('sale-returns.index') }}"><i class="bi bi-arrow-return-left me-2"></i>Devoluciones</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('vehicles.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('vehicles.*') ? 'active' : '' }}" href="{{ route('vehicles.index') }}"><i class="bi bi-bicycle me-2"></i>Vehículos</a></li>
+                @endif
+            </ul>
+            @endif
+
+            @if($canCredit)
+            <div class="sidebar-section-title">Créditos</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit-applications.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit-applications.*') ? 'active' : '' }}" href="{{ route('credit-applications.index') }}"><i class="bi bi-file-earmark-medical me-2"></i>Solicitudes</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit.sales') ? 'active' : '' }}" href="{{ route('credit.sales') }}"><i class="bi bi-credit-card me-2"></i>Ventas a Crédito</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('payment-plans.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('payment-plans.*') ? 'active' : '' }}" href="{{ route('payment-plans.index') }}"><i class="bi bi-list-check me-2"></i>Planes de Pago</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit.cuotas') ? 'active' : '' }}" href="{{ route('credit.cuotas') }}"><i class="bi bi-calendar-check me-2"></i>Cuotas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit.cobranza') ? 'active' : '' }}" href="{{ route('credit.cobranza') }}"><i class="bi bi-cash-coin me-2"></i>Cobranza</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit.morosos') ? 'active' : '' }}" href="{{ route('credit.morosos') }}"><i class="bi bi-exclamation-octagon me-2"></i>Morosos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit-reports.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('credit.reports') ? 'active' : '' }}" href="{{ route('credit.reports') }}"><i class="bi bi-graph-up me-2"></i>Reportes</a></li>
+                @endif
+            </ul>
+            @endif
+
+            @if($canWorkshop)
+            <div class="sidebar-section-title">Taller</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('workshop.dashboard') ? 'active' : '' }}" href="{{ route('workshop.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.create', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('workshop.reception') ? 'active' : '' }}" href="{{ route('workshop.reception') }}"><i class="bi bi-box-arrow-in-down me-2"></i>Recepción</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('workshop.orders.*') ? 'active' : '' }}" href="{{ route('workshop.orders.index') }}"><i class="bi bi-tools me-2"></i>Órdenes de Trabajo</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('services.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('services.*') ? 'active' : '' }}" href="{{ route('services.index') }}"><i class="bi bi-wrench-adjustable me-2"></i>Servicios</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('mechanics.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('mechanics.*') ? 'active' : '' }}" href="{{ route('mechanics.index') }}"><i class="bi bi-person-gear me-2"></i>Mecánicos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('workshop.deliveries.*') ? 'active' : '' }}" href="{{ route('workshop.deliveries.index') }}"><i class="bi bi-truck me-2"></i>Entregas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('workshop.history') ? 'active' : '' }}" href="{{ route('workshop.history') }}"><i class="bi bi-clock-history me-2"></i>Historial</a></li>
+                @endif
+            </ul>
+            @endif
+
+            @if($canMotos)
+            <div class="sidebar-section-title">Motos</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-brands.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('moto-brands.*') ? 'active' : '' }}" href="{{ route('moto-brands.index') }}"><i class="bi bi-tag me-2"></i>Marcas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-models.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('moto-models.*') ? 'active' : '' }}" href="{{ route('moto-models.index') }}"><i class="bi bi-bicycle me-2"></i>Modelos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-units.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('moto-units.*') ? 'active' : '' }}" href="{{ route('moto-units.index') }}"><i class="bi bi-box-seam me-2"></i>Inventario de Motos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-sales.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('moto-sales.*') ? 'active' : '' }}" href="{{ route('moto-sales.index') }}"><i class="bi bi-cart-check me-2"></i>Ventas de Motos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-deliveries.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('moto-deliveries.*') ? 'active' : '' }}" href="{{ route('moto-deliveries.index') }}"><i class="bi bi-truck me-2"></i>Entregas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warranties.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('warranties.*') ? 'active' : '' }}" href="{{ route('warranties.index') }}"><i class="bi bi-shield-check me-2"></i>Garantías</a></li>
+                @endif
+            </ul>
+            @endif
+
+            @if($canRentals)
+            <div class="sidebar-section-title">Alquileres</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.dashboard') ? 'active' : '' }}" href="{{ route('rentals.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.calendar') ? 'active' : '' }}" href="{{ route('rentals.calendar') }}"><i class="bi bi-calendar3 me-2"></i>Calendario</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.reservations') || request()->routeIs('rentals.create') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}"><i class="bi bi-bookmark-plus me-2"></i>Reservas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.contracts') ? 'active' : '' }}" href="{{ route('rentals.contracts') }}"><i class="bi bi-file-earmark-text me-2"></i>Contratos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.deliveries') ? 'active' : '' }}" href="{{ route('rentals.deliveries') }}"><i class="bi bi-box-arrow-up me-2"></i>Entregas</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.active') ? 'active' : '' }}" href="{{ route('rentals.active') }}"><i class="bi bi-bicycle me-2"></i>En curso</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.returns') ? 'active' : '' }}" href="{{ route('rentals.returns') }}"><i class="bi bi-box-arrow-in-down me-2"></i>Devoluciones</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.collections') ? 'active' : '' }}" href="{{ route('rentals.collections') }}"><i class="bi bi-cash-stack me-2"></i>Cobros</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.payments') ? 'active' : '' }}" href="{{ route('rentals.payments') }}"><i class="bi bi-cash-coin me-2"></i>Pagos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.penalties') ? 'active' : '' }}" href="{{ route('rentals.penalties') }}"><i class="bi bi-exclamation-triangle me-2"></i>Penalizaciones</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.history') ? 'active' : '' }}" href="{{ route('rentals.history') }}"><i class="bi bi-clock-history me-2"></i>Historial</a></li>
+            </ul>
+            @endif
+
+            @if($canPurchases)
+            <div class="sidebar-section-title">Compras</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases-dashboard.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('purchases-dashboard.*') ? 'active' : '' }}" href="{{ route('purchases-dashboard.index') }}"><i class="bi bi-graph-up-arrow me-2"></i>Dashboard</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('suppliers.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}" href="{{ route('suppliers.index') }}"><i class="bi bi-truck me-2"></i>Proveedores</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchase-orders.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('purchase-orders.*') ? 'active' : '' }}" href="{{ route('purchase-orders.index') }}"><i class="bi bi-file-earmark-text me-2"></i>Órdenes de Compra</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('goods-receipts.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('goods-receipts.*') ? 'active' : '' }}" href="{{ route('goods-receipts.index') }}"><i class="bi bi-box-arrow-in-down me-2"></i>Recepciones</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('purchases.*') ? 'active' : '' }}" href="{{ route('purchases.index') }}"><i class="bi bi-receipt me-2"></i>Compras</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('accounts-payable.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('accounts-payable.*') ? 'active' : '' }}" href="{{ route('accounts-payable.index') }}"><i class="bi bi-cash-stack me-2"></i>Cuentas por Pagar</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('treasury.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('treasury.*') ? 'active' : '' }}" href="{{ route('treasury.index') }}"><i class="bi bi-bank me-2"></i>Tesorería</a></li>
+                @endif
+            </ul>
+            @endif
+
+            <div class="sidebar-section-title">Inventario</div>
             <ul class="nav flex-column gap-1">
-                <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">Overview</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">Plantillas</a></li>
-                @if(auth()->user()->is_super_admin)
-                    <li><a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">Empresas</a></li>
-                    <li><a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}">Roles</a></li>
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}"><i class="bi bi-box-seam me-2"></i>Productos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}"><i class="bi bi-clipboard-data me-2"></i>Inventario</a></li>
                 @endif
-                @if(auth()->user()->hasPermissionInCompany('users.view', $currentCompany))
-                    <li><a class="nav-link app-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">Usuarios</a></li>
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}"><i class="bi bi-building-add me-2"></i>Almacenes</a></li>
                 @endif
-                <li><a class="nav-link app-link {{ request()->routeIs('branches.*') ? 'active' : '' }}" href="{{ route('branches.index') }}">Sucursales</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Productos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">Almacenes</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}">Cajas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}" href="{{ route('cargos.index') }}">Cargos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('personal.*') ? 'active' : '' }}" href="{{ route('personal.index') }}">Personal</a></li>
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}"><i class="bi bi-tags me-2"></i>Categorías</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}"><i class="bi bi-award me-2"></i>Marcas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}"><i class="bi bi-journal-text me-2"></i>Kardex</a></li>
+                @endif
             </ul>
         </nav>
     </div>
@@ -205,182 +826,417 @@
 
 @push('styles')
 <style>
+    /* ── Shell layout ───────────────────────────────────────────── */
     .app-shell {
         min-height: 100vh;
-        background: #f2f2f2;
+        background: var(--surface-bg);
     }
 
     .app-sidebar {
-        width: 250px;
-        background: #f8f8f8;
-        border-right: 1px solid #dfdfdf;
-        padding: 12px 10px;
+        width: 248px;
+        background: var(--brand-black);
+        color: #d8d8da;
+        padding: 16px 12px;
         position: sticky;
         top: 0;
         height: 100vh;
+        border-right: 1px solid #000;
+        overflow-y: auto;
     }
 
+    /* Acento rojo lateral sutil */
+    .app-sidebar::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0;
+        width: 3px; height: 100vh;
+        background: linear-gradient(180deg, var(--brand-red) 0%, transparent 100%);
+        opacity: 0.7;
+        z-index: 1;
+    }
+
+    /* ── Brand ──────────────────────────────────────────────────── */
     .sidebar-brand {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 18px;
-        padding: 10px 8px 14px;
-        border-bottom: 1px solid #e0e0e0;
+        gap: 12px;
+        margin-bottom: 22px;
+        padding: 6px 8px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
     .brand-icon {
-        width: 30px;
-        height: 30px;
-        border-radius: 6px;
+        width: 52px; height: 52px;
+        border-radius: 12px;
         display: grid;
         place-items: center;
-        color: #4b4b4b;
-        background: #ececec;
-        font-size: 0.9rem;
+        color: #fff;
+        background: #000;
+        font-size: 1.15rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.06);
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .brand-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 3px;
     }
 
     .brand-title {
-        font-weight: 700;
-        font-size: 0.68rem;
-        letter-spacing: 0.14em;
+        font-weight: 800;
+        font-size: 1rem;
+        letter-spacing: 0.05em;
         line-height: 1.1;
-        color: #333;
+        color: #fff;
     }
 
+    .brand-accent {
+        color: var(--brand-red);
+        font-weight: 800;
+    }
+
+    .brand-subtitle {
+        color: #7d7d83;
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+    }
+
+    /* ── Section titles ─────────────────────────────────────────── */
     .sidebar-section-title {
-        color: #828282;
-        font-size: 0.75rem;
+        color: #6a6a70;
+        font-size: 0.68rem;
         font-weight: 700;
-        text-transform: none;
-        letter-spacing: 0;
-        padding: 2px 10px 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        padding: 4px 12px 8px;
+        margin-top: 6px;
     }
 
+    /* ── Nav links ──────────────────────────────────────────────── */
     .app-link {
-        border-radius: 6px;
-        padding: 8px 10px;
-        color: #464646;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-radius: 8px;
+        padding: 9px 12px;
+        color: #c0c0c5;
         border: 1px solid transparent;
-        font-size: 0.88rem;
-        transition: all 0.2s ease;
+        font-size: 0.86rem;
+        font-weight: 500;
+        transition: all 0.18s ease;
+        position: relative;
+    }
+
+    .app-link i {
+        font-size: 1rem;
+        width: 18px;
+        text-align: center;
+        color: #8d8d93;
+        transition: color 0.18s ease;
     }
 
     .app-link:hover {
-        background: #ebebeb;
-        color: #202020;
+        background: rgba(255,255,255,0.04);
+        color: #fff;
     }
+    .app-link:hover i { color: var(--brand-red); }
 
     .app-link.active {
-        background: #ffffff;
-        border-color: #d7d7d7;
-        color: #111;
+        background: linear-gradient(90deg, rgba(225,6,0,0.15) 0%, rgba(225,6,0,0.03) 100%);
+        color: #fff;
         font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        border-color: rgba(225,6,0,0.25);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
+    .app-link.active::before {
+        content: '';
+        position: absolute;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 60%;
+        background: var(--brand-red);
+        border-radius: 0 3px 3px 0;
+    }
+    .app-link.active i { color: var(--brand-red); }
 
+    /* ── Main column ────────────────────────────────────────────── */
     .app-main {
         flex: 1;
-        padding: 14px 18px 24px;
+        padding: 0 22px 28px;
+        min-width: 0;
     }
 
+    /* ── Topbar (oscuro elegante con acento rojo) ───────────────── */
     .app-topbar {
-        background: #1e1e1e;
+        background: #fff;
         border: 0;
+        border-bottom: 1px solid var(--border-soft);
         border-radius: 0;
-        padding: 8px 14px;
-        margin-left: -18px;
-        margin-right: -18px;
-        margin-top: -14px;
+        padding: 12px 20px;
+        margin-left: -22px;
+        margin-right: -22px;
+        margin-bottom: 22px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
     .topbar-label {
-        color: #f2f2f2;
-        font-size: 0.82rem;
-        font-weight: 500;
+        color: var(--text-primary);
+        font-size: 0.92rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
     }
 
     .topbar-separator {
-        color: #8f8f8f;
-        font-size: 0.8rem;
+        color: var(--border-medium);
+        font-size: 0.85rem;
     }
 
+    /* ── Top-right buttons ──────────────────────────────────────── */
     .btn-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        border: 1px solid #3a3a3a;
-        background: #232323;
-        color: #e8e8e8;
+        width: 36px; height: 36px;
+        border-radius: 9px;
+        border: 1px solid var(--border-soft);
+        background: #fff;
+        color: var(--text-primary);
         display: grid;
         place-items: center;
         padding: 0;
+        transition: all .15s ease;
     }
-
     .btn-icon:hover {
-        background: #2d2d2d;
-        color: #fff;
+        background: var(--brand-red-tint);
+        color: var(--brand-red);
+        border-color: var(--brand-red-soft);
     }
 
     .btn-logout {
-        border: 1px solid #474747;
-        background: #2a2a2a;
-        color: #f0f0f0;
-        border-radius: 8px;
-        padding: 6px 10px;
-        font-size: 0.82rem;
+        border: 1px solid var(--border-soft);
+        background: #fff;
+        color: var(--text-secondary);
+        border-radius: 9px;
+        padding: 7px 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all .15s ease;
     }
-
     .btn-logout:hover {
-        background: #363636;
-        color: #fff;
+        background: var(--brand-red-tint);
+        border-color: var(--brand-red-soft);
+        color: var(--brand-red-dark);
     }
 
+    /* ── Cash register button states ────────────────────────────── */
+    /* Caja cerrada: neutro oscuro con indicador rojo (llama la
+       atención sin parecer botón destructivo) */
     .btn-cash-closed {
-        border: 1px solid #f97316;
-        background: #431407;
-        color: #fed7aa;
-        border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 0.82rem;
+        border: 1px solid var(--brand-black);
+        background: var(--brand-black);
+        color: #fff;
+        border-radius: 9px;
+        padding: 7px 14px;
+        font-size: 0.85rem;
+        font-weight: 500;
         white-space: nowrap;
+        transition: all .15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
     }
-
+    .btn-cash-closed::before {
+        content: '';
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--brand-red);
+        box-shadow: 0 0 0 2px rgba(225,6,0,.25);
+        animation: pulse-red 2s ease-in-out infinite;
+    }
     .btn-cash-closed:hover {
-        background: #7c2d12;
-        color: #ffedd5;
+        background: var(--brand-black-2);
+        border-color: var(--brand-black-2);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(10,10,10,.20);
     }
 
+    @keyframes pulse-red {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(225,6,0,.25); }
+        50%      { box-shadow: 0 0 0 4px rgba(225,6,0,.05); }
+    }
+
+    /* Caja abierta: verde suave (estado positivo activo) */
     .btn-cash-open {
-        border: 1px solid #16a34a;
-        background: #052e16;
-        color: #86efac;
-        border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 0.82rem;
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+        border-radius: 9px;
+        padding: 7px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
         white-space: nowrap;
+        transition: all .15s ease;
     }
-
     .btn-cash-open:hover {
-        background: #14532d;
-        color: #bbf7d0;
+        background: #dcfce7;
+        border-color: #86efac;
+        color: #14532d;
     }
 
-    @media (max-width: 991.98px) {
-        .app-sidebar {
-            display: none;
-        }
+    /* ── Empresa selector en topbar ─────────────────────────────── */
+    .app-topbar .btn-outline-light {
+        border-color: var(--border-soft);
+        background: #fff;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    .app-topbar .btn-outline-light:hover {
+        background: var(--surface-muted);
+        color: var(--text-primary);
+        border-color: var(--border-medium);
+    }
 
-        .app-main {
-            padding: 16px;
-        }
+    /* ── Breadcrumb ─────────────────────────────────────────────── */
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        font-size: 0.85rem;
+    }
+    .breadcrumb-item.active { color: var(--text-secondary); }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 991.98px) {
+        .app-sidebar { display: none; }
+        .app-sidebar::before { display: none; }
+
+        .app-main { padding: 0 16px 24px; }
 
         .app-topbar {
             margin-left: -16px;
             margin-right: -16px;
-            margin-top: -16px;
         }
     }
+
+    /* ── Offcanvas mobile sidebar ───────────────────────────────── */
+    .offcanvas {
+        background: var(--brand-black);
+        color: #d8d8da;
+        max-width: 280px;
+    }
+    .offcanvas .offcanvas-header {
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .offcanvas .offcanvas-title { color: #fff; }
+    .offcanvas .btn-close { filter: invert(1); opacity: 0.7; }
+    .offcanvas .brand-icon { width: 38px; height: 38px; border-radius: 9px; }
+
+    /* ── Secciones colapsables del menú ─────────────────────────── */
+    .sidebar-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+        transition: color .15s ease;
+    }
+    .sidebar-section-title:hover { color: #b9b9bf; }
+    .sidebar-section-title .sec-chevron {
+        font-size: 0.6rem;
+        opacity: 0.55;
+        transition: transform .2s ease;
+    }
+    .sidebar-section-title.collapsed .sec-chevron { transform: rotate(-90deg); }
+    .nav-section-hidden { display: none !important; }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    // ── 4. Secciones colapsables (acordeón con memoria) ──────────
+    function setupCollapsibleSections(scope) {
+        scope.querySelectorAll('.sidebar-section-title').forEach(function (title) {
+            const list = title.nextElementSibling;
+            if (!list || list.tagName !== 'UL') return;
+
+            // Chevron (idempotente)
+            if (!title.querySelector('.sec-chevron')) {
+                const chev = document.createElement('i');
+                chev.className = 'bi bi-chevron-down sec-chevron';
+                title.appendChild(chev);
+            }
+
+            const label    = (title.textContent || '').trim();
+            const key       = 'vrSec:' + label;
+            const hasActive = !!list.querySelector('.app-link.active');
+            const saved     = localStorage.getItem(key);
+
+            // Abierta si: contiene el activo, o el usuario la dejó abierta.
+            // Por defecto (sin estado guardado) las que no tienen activo van colapsadas.
+            let open = hasActive || saved === 'open';
+            if (saved === null && !hasActive) open = false;
+            if (saved === null && hasActive)  open = true;
+
+            applyState(title, list, open);
+
+            title.addEventListener('click', function () {
+                const nowOpen = title.classList.contains('collapsed'); // si estaba colapsada → abrir
+                applyState(title, list, nowOpen);
+                localStorage.setItem(key, nowOpen ? 'open' : 'closed');
+            });
+        });
+    }
+
+    function applyState(title, list, open) {
+        title.classList.toggle('collapsed', !open);
+        list.classList.toggle('nav-section-hidden', !open);
+    }
+
+    // ── 3. Persistir scroll del sidebar / mantener visible el activo ──
+    function setupSidebarScroll() {
+        const sb = document.querySelector('.app-sidebar');
+        if (!sb) return;
+        const KEY = 'vrSidebarScroll';
+
+        const saved = sessionStorage.getItem(KEY);
+        if (saved !== null) {
+            sb.scrollTop = parseInt(saved, 10) || 0;
+        } else {
+            // Centrar el item activo sin mover la página
+            const active = sb.querySelector('.app-link.active');
+            if (active) {
+                const r  = active.getBoundingClientRect();
+                const sr = sb.getBoundingClientRect();
+                sb.scrollTop += (r.top - sr.top) - (sb.clientHeight / 2) + (r.height / 2);
+            }
+        }
+
+        // Guardar al navegar
+        sb.querySelectorAll('a.app-link').forEach(function (a) {
+            a.addEventListener('click', function () {
+                sessionStorage.setItem(KEY, sb.scrollTop);
+            });
+        });
+        // Guardar al hacer scroll (con debounce)
+        let t;
+        sb.addEventListener('scroll', function () {
+            clearTimeout(t);
+            t = setTimeout(function () { sessionStorage.setItem(KEY, sb.scrollTop); }, 120);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const desktop = document.querySelector('.app-sidebar');
+        if (desktop) setupCollapsibleSections(desktop);
+        const mobile = document.querySelector('#appSidebarMobile');
+        if (mobile) setupCollapsibleSections(mobile);
+        setupSidebarScroll();
+    });
+})();
+</script>
 @endpush
 @endsection
