@@ -40,7 +40,9 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            // Escribe directamente en public/storage (carpeta real, sin depender del symlink).
+            // Funciona igual en local y en hosting compartido (stackcp) sin necesidad de `storage:link`.
+            'root' => public_path('storage'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
