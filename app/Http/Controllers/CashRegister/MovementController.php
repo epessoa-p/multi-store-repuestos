@@ -64,6 +64,11 @@ class MovementController extends Controller
         $gastos  = (float) (clone $movQuery)->where('type', 'expense')->sum('amount');
         $balance = $ventas - $gastos;
 
+        // Totales históricos (desde el inicio, todas las sucursales) — fijos, sin filtros
+        $allIncome  = (float) CashMovement::when($cid, fn ($qq) => $qq->where('company_id', $cid))->where('type', 'income')->sum('amount');
+        $allExpense = (float) CashMovement::when($cid, fn ($qq) => $qq->where('company_id', $cid))->where('type', 'expense')->sum('amount');
+        $allBalance = $allIncome - $allExpense;
+
         // Listas paginadas (página independiente por pestaña)
         $ingresos = (clone $movQuery)->where('type', 'income')->paginate(15, ['*'], 'ip')->withQueryString();
         $egresos  = (clone $movQuery)->where('type', 'expense')->paginate(15, ['*'], 'ep')->withQueryString();
@@ -131,6 +136,7 @@ class MovementController extends Controller
         return view('cash.movements.index', compact(
             'branches', 'branch', 'period', 'periodLabel', 'q', 'from', 'to',
             'ingresos', 'egresos', 'ventas', 'gastos', 'balance',
+            'allIncome', 'allExpense', 'allBalance',
             'porCobrar', 'totalCobrar', 'porPagar', 'totalPagar', 'closures',
             'dateValue', 'weekValue', 'monthValue'
         ) + ['date' => $dateValue,

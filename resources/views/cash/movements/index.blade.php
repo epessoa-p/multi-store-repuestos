@@ -5,7 +5,7 @@
 <div class="container-fluid">
 
     {{-- ── Header ──────────────────────────────────────────────────── --}}
-    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h1 class="mb-1 fw-bold fs-4">
                 <i class="bi bi-arrow-left-right me-2 text-muted"></i>Movimientos
@@ -22,6 +22,28 @@
                 </span>
                 @endif
             </p>
+        </div>
+
+        {{-- Totales históricos (fijos, no se ajustan con los filtros) --}}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+                <div class="text-muted lh-1 text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">
+                    <i class="bi bi-clock-history d-block mb-1" style="font-size:.95rem;"></i>Histórico
+                </div>
+                <div class="vr"></div>
+                <div class="text-center">
+                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Balance</div>
+                    <div class="fw-bold {{ $allBalance >= 0 ? 'text-dark' : 'text-danger' }}" style="font-size:.92rem;">Bs. {{ number_format($allBalance, 2) }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Ingresos</div>
+                    <div class="fw-bold text-success" style="font-size:.92rem;">Bs. {{ number_format($allIncome, 2) }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Egresos</div>
+                    <div class="fw-bold text-danger" style="font-size:.92rem;">Bs. {{ number_format($allExpense, 2) }}</div>
+                </div>
+            </div>
         </div>
     </div>
 
