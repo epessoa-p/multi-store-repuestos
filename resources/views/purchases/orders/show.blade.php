@@ -34,9 +34,6 @@
                             <i class="bi bi-box-arrow-in-down me-1"></i>Recepcionar
                         </a>
                         @endif
-                        <a href="{{ route('purchases.create', ['order_id' => $order->id]) }}" class="btn btn-light border btn-sm">
-                            <i class="bi bi-receipt me-1"></i>Generar factura
-                        </a>
                         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchase-orders.edit', auth()->user()->getCurrentCompany()))
                         @if(in_array($order->status, ['draft', 'sent']))
                         <a href="{{ route('purchase-orders.edit', $order) }}" class="btn btn-light border btn-sm">
@@ -91,11 +88,11 @@
                                         <small class="text-muted">{{ $item->product->sku }}</small>
                                         @endif
                                     </td>
-                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 0) }}</td>
                                     <td class="py-3 text-end small">
                                         @php $received = $item->received_quantity ?? 0; @endphp
                                         <span class="{{ $received >= $item->quantity ? 'text-success fw-semibold' : 'text-warning' }}">
-                                            {{ number_format($received, 2) }}
+                                            {{ number_format($received, 0) }}
                                         </span>
                                     </td>
                                     <td class="py-3 text-end small">${{ number_format($item->unit_cost, 2) }}</td>

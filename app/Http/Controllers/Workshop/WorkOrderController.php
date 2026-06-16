@@ -157,7 +157,7 @@ class WorkOrderController extends Controller
             'service_id'  => 'nullable|exists:services,id',
             'description' => 'required|string|max:500',
             'price'       => 'required|numeric|min:0',
-            'quantity'    => 'required|numeric|min:0.01',
+            'quantity'    => 'required|integer|min:1',
             'mechanic_id' => 'nullable|exists:mechanics,id',
         ]);
 
@@ -193,7 +193,7 @@ class WorkOrderController extends Controller
 
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'quantity'   => 'required|numeric|min:0.01',
+            'quantity'   => 'required|integer|min:1',
             'unit_price' => 'required|numeric|min:0',
         ]);
 

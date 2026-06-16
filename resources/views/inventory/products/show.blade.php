@@ -246,7 +246,7 @@
                                             {{ $typeInfo['label'] }}
                                         </span>
                                     </td>
-                                    <td class="py-2 text-end small fw-semibold">{{ number_format($mov->quantity, 2) }}</td>
+                                    <td class="py-2 text-end small fw-semibold">{{ number_format($mov->quantity, 0) }}</td>
                                     <td class="py-2 small text-muted pe-4">{{ $mov->user?->name ?: '—' }}</td>
                                 </tr>
                                 @endforeach

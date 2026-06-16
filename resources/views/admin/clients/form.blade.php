@@ -181,46 +181,29 @@
         <div class="col-lg-4">
 
             {{-- Foto del cliente --}}
-            <div class="card border-0 shadow-sm mb-4" style="position:sticky;top:1rem;">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-camera me-2 text-muted"></i>Foto del cliente</h6>
-                </div>
-                <div class="card-body text-center">
-                    {{-- Preview --}}
-                    <div class="mb-3">
-                        <div id="photoPreviewWrap" class="mx-auto rounded-3 overflow-hidden border d-flex align-items-center justify-content-center"
-                             style="width:130px;height:130px;background:#f8f8f8;">
-                            @if($isEdit && $client->photo_url)
-                                <img src="{{ $client->photo_url }}" id="photoPreview"
-                                     class="w-100 h-100 object-fit-cover" alt="Foto">
-                            @else
-                                <div id="photoPlaceholder" class="text-muted text-center px-2" style="font-size:.8rem;">
-                                    <i class="bi bi-person-circle d-block fs-1 mb-1 opacity-25"></i>
-                                    Sin foto
-                                </div>
-                                <img id="photoPreview" src="" class="w-100 h-100 object-fit-cover d-none" alt="Foto">
-                            @endif
+            <div class="mb-4" style="position:sticky;top:1rem;">
+                <x-media-upload
+                    name="photo"
+                    label="Foto del cliente"
+                    icon="bi-person-bounding-box"
+                    :max-mb="2"
+                    accent="#2563eb"
+                    drop-text="Arrastra aquí"
+                    hint="JPG, PNG, WebP · máx. 2MB"
+                    :current="$isEdit && $client->photo_url ? $client->photo_url : null" />
+
+                {{-- Documentos adjuntos --}}
+                <div class="media-uploader card-box mt-4" data-doc-uploader
+                     data-types='@json(\App\Models\ClientDocument::TYPES)'
+                     data-default-type="other" data-max-mb="5" data-start-index="0"
+                     style="--mu-accent:#7c3aed;">
+                    <div class="mu-head">
+                        <span class="mu-head-icon"><i class="bi bi-folder2-open"></i></span>
+                        <div>
+                            <div class="mu-head-title">Documentos adjuntos</div>
+                            <div class="mu-head-sub">CI, facturas, contratos u otros archivos del cliente.</div>
                         </div>
                     </div>
-
-                    <label for="photo" class="btn btn-light border w-100 mb-1" style="cursor:pointer;">
-                        <i class="bi bi-upload me-1"></i>
-                        {{ $isEdit && $client->photo ? 'Cambiar foto' : 'Subir foto' }}
-                    </label>
-                    <input type="file" id="photo" name="photo" class="d-none" accept="image/*">
-                    <small class="text-muted d-block">JPG, PNG — máx 2 MB</small>
-                </div>
-            </div>
-
-            {{-- Documentos --}}
-            <div class="card border-0 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-folder2-open me-2 text-muted"></i>Documentos</h6>
-                    <button type="button" class="btn btn-sm btn-light border" id="btnAddDoc">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                </div>
-                <div class="card-body" id="docsContainer">
 
                     {{-- Documentos existentes (edit) --}}
                     @if($isEdit && $client->documents->isNotEmpty())
@@ -237,66 +220,44 @@
                         @endforeach
                         <small class="text-muted d-block mt-1">Para eliminar documentos usa la vista de detalle.</small>
                     </div>
-                    <hr class="my-3">
                     @endif
 
-                    <div class="text-muted small mb-2 fw-semibold">
-                        {{ $isEdit ? 'Agregar nuevos documentos' : 'Adjuntar documentos' }}
+                    <div class="mu-tabs">
+                        <button type="button" class="mu-tab active" data-pane="upload"><i class="bi bi-upload"></i> Archivo</button>
+                        <button type="button" class="mu-tab" data-pane="camera"><i class="bi bi-camera-video"></i> Cámara</button>
                     </div>
 
-                    {{-- Slot CI Anverso --}}
-                    <div class="doc-slot mb-3 p-3 rounded-3 border" data-index="0">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-card-heading text-muted"></i>
-                                <select name="doc_type[0]" class="form-select form-select-sm border-0 bg-transparent p-0"
-                                        style="width:auto;font-size:.82rem;font-weight:600;color:var(--text-primary);">
-                                    @foreach(\App\Models\ClientDocument::TYPES as $val => $lbl)
-                                        <option value="{{ $val }}" {{ $val === 'ci_front' ? 'selected' : '' }}>{{ $lbl }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <button type="button" class="btn-remove-doc btn btn-sm text-muted p-0" style="opacity:.5;">
-                                <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
-                            </button>
+                    <div class="mu-pane mu-pane-upload">
+                        <div class="mu-chips">
+                            <button type="button" class="mu-chip" data-doc-chip data-type="ci_front"><i class="bi bi-person-vcard"></i> CI Anverso</button>
+                            <button type="button" class="mu-chip" data-doc-chip data-type="ci_back"><i class="bi bi-person-vcard-fill"></i> CI Reverso</button>
+                            <button type="button" class="mu-chip" data-doc-chip data-type="invoice"><i class="bi bi-receipt"></i> Factura</button>
+                            <button type="button" class="mu-chip" data-doc-chip data-type="other"><i class="bi bi-plus-lg"></i> Otro</button>
                         </div>
-                        <input type="text" name="doc_label[0]" class="form-control form-control-sm mb-2 doc-label-input"
-                               placeholder="Nombre / referencia (opcional)" style="display:none;">
-                        <label class="doc-upload-area d-block rounded-2 border-dashed text-center py-3 px-2"
-                               style="cursor:pointer;background:#fafafa;font-size:.78rem;color:#9a9a9a;border:2px dashed #ddd;">
-                            <i class="bi bi-cloud-upload d-block fs-5 mb-1 opacity-50"></i>
-                            Haz clic o arrastra el archivo
-                            <input type="file" name="doc_file[0]" class="d-none doc-file-input"
-                                   accept="image/*,.pdf">
-                        </label>
-                        <div class="doc-preview mt-2 d-none"></div>
-                    </div>
-
-                    {{-- Slot CI Reverso --}}
-                    <div class="doc-slot mb-3 p-3 rounded-3 border" data-index="1">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-card-text text-muted"></i>
-                                <select name="doc_type[1]" class="form-select form-select-sm border-0 bg-transparent p-0"
-                                        style="width:auto;font-size:.82rem;font-weight:600;color:var(--text-primary);">
-                                    @foreach(\App\Models\ClientDocument::TYPES as $val => $lbl)
-                                        <option value="{{ $val }}" {{ $val === 'ci_back' ? 'selected' : '' }}>{{ $lbl }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <button type="button" class="btn-remove-doc btn btn-sm text-muted p-0" style="opacity:.5;">
-                                <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
-                            </button>
+                        <div class="mu-drop">
+                            <span class="mu-drop-icon"><i class="bi bi-cloud-arrow-up"></i></span>
+                            <span class="mu-drop-text">Arrastra archivos aquí</span>
+                            <span class="mu-drop-hint">o usa los botones de arriba · JPG, PNG, PDF · máx. 5MB</span>
                         </div>
-                        <label class="doc-upload-area d-block rounded-2 text-center py-3 px-2"
-                               style="cursor:pointer;background:#fafafa;font-size:.78rem;color:#9a9a9a;border:2px dashed #ddd;">
-                            <i class="bi bi-cloud-upload d-block fs-5 mb-1 opacity-50"></i>
-                            Haz clic o arrastra el archivo
-                            <input type="file" name="doc_file[1]" class="d-none doc-file-input" accept="image/*,.pdf">
-                        </label>
-                        <div class="doc-preview mt-2 d-none"></div>
+                        <input type="file" class="mu-doc-picker d-none" accept="image/*,.pdf" multiple>
                     </div>
 
+                    <div class="mu-pane mu-pane-camera d-none">
+                        <div class="mu-cam-frame">
+                            <video class="mu-video" autoplay playsinline muted></video>
+                            <div class="mu-cam-off"><i class="bi bi-camera-video-off"></i><span>Cámara apagada</span></div>
+                        </div>
+                        <div class="mu-cam-actions">
+                            <button type="button" class="mu-btn mu-btn-light" data-cam="start"><i class="bi bi-camera-video me-1"></i>Iniciar</button>
+                            <button type="button" class="mu-btn mu-btn-accent d-none" data-cam="snap"><i class="bi bi-camera me-1"></i>Capturar</button>
+                            <button type="button" class="mu-btn mu-btn-light d-none" data-cam="stop">Detener</button>
+                        </div>
+                        <canvas class="mu-canvas d-none"></canvas>
+                    </div>
+
+                    <div class="mu-doc-list"></div>
+
+                    @include('partials.uploaders._assets')
                 </div>
             </div>
 
@@ -396,19 +357,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
-    // ── Foto preview ──────────────────────────────────────────
-    document.getElementById('photo').addEventListener('change', function () {
-        if (!this.files[0]) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = document.getElementById('photoPreview');
-            const ph  = document.getElementById('photoPlaceholder');
-            img.src   = e.target.result;
-            img.classList.remove('d-none');
-            if (ph) ph.classList.add('d-none');
-        };
-        reader.readAsDataURL(this.files[0]);
-    });
+    {{-- La foto y los documentos del cliente ahora usan el componente <x-media-upload> --}}
 
     // ── Preview de mapa estático (iframe OSM) ─────────────────
     window.previewMap = function (url) {
@@ -626,89 +575,6 @@
     // Reset al cerrar el modal
     modalEl.addEventListener('hidden.bs.modal', function () {
         document.getElementById('mapSearchInput').value = '';
-    });
-
-    // ── Documentos dinámicos ──────────────────────────────────
-    let docIndex = 2;
-
-    function buildSlot(index) {
-        const types = @json(\App\Models\ClientDocument::TYPES);
-        const opts  = Object.entries(types).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-        return `
-        <div class="doc-slot mb-3 p-3 rounded-3 border" data-index="${index}">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-file-earmark text-muted"></i>
-                    <select name="doc_type[${index}]" class="form-select form-select-sm border-0 bg-transparent p-0"
-                            style="width:auto;font-size:.82rem;font-weight:600;color:var(--text-primary);"
-                            onchange="toggleLabel(this)">
-                        ${opts}
-                    </select>
-                </div>
-                <button type="button" class="btn-remove-doc btn btn-sm text-muted p-0" style="opacity:.5;">
-                    <i class="bi bi-x-lg" style="font-size:.7rem;"></i>
-                </button>
-            </div>
-            <input type="text" name="doc_label[${index}]" class="form-control form-control-sm mb-2 doc-label-input"
-                   placeholder="Nombre del documento" style="display:none;">
-            <label class="doc-upload-area d-block rounded-2 text-center py-3 px-2"
-                   style="cursor:pointer;background:#fafafa;font-size:.78rem;color:#9a9a9a;border:2px dashed #ddd;">
-                <i class="bi bi-cloud-upload d-block fs-5 mb-1 opacity-50"></i>
-                Haz clic o arrastra el archivo
-                <input type="file" name="doc_file[${index}]" class="d-none doc-file-input" accept="image/*,.pdf">
-            </label>
-            <div class="doc-preview mt-2 d-none"></div>
-        </div>`;
-    }
-
-    document.getElementById('btnAddDoc').addEventListener('click', function () {
-        document.getElementById('docsContainer').insertAdjacentHTML('beforeend', buildSlot(docIndex++));
-        bindSlotEvents(document.querySelector(`[data-index="${docIndex-1}"]`));
-    });
-
-    window.toggleLabel = function (sel) {
-        const label = sel.closest('.doc-slot').querySelector('.doc-label-input');
-        label.style.display = sel.value === 'other' ? 'block' : 'none';
-    };
-
-    function bindSlotEvents(slot) {
-        slot.querySelector('.btn-remove-doc').addEventListener('click', () => slot.remove());
-        slot.querySelector('.doc-file-input').addEventListener('change', function () {
-            const prev  = slot.querySelector('.doc-preview');
-            const file  = this.files[0];
-            if (!file) return;
-            const area  = slot.querySelector('.doc-upload-area');
-            area.querySelector('i').className = 'bi bi-check-circle-fill d-block fs-5 mb-1 text-success';
-            area.querySelector('i').nextSibling.textContent = file.name;
-            prev.classList.remove('d-none');
-        });
-        slot.querySelector('select')?.addEventListener('change', function () { toggleLabel(this); });
-    }
-
-    // Bind slots iniciales
-    document.querySelectorAll('.doc-slot').forEach(bindSlotEvents);
-
-    // Drag & drop zones
-    document.addEventListener('dragover', e => {
-        const zone = e.target.closest('.doc-upload-area');
-        if (zone) { e.preventDefault(); zone.style.borderColor = 'var(--brand-red)'; }
-    });
-    document.addEventListener('dragleave', e => {
-        const zone = e.target.closest('.doc-upload-area');
-        if (zone) zone.style.borderColor = '#ddd';
-    });
-    document.addEventListener('drop', e => {
-        const zone = e.target.closest('.doc-upload-area');
-        if (!zone) return;
-        e.preventDefault();
-        zone.style.borderColor = '#ddd';
-        const input = zone.querySelector('.doc-file-input');
-        if (e.dataTransfer.files[0]) {
-            const dt = new DataTransfer();
-            dt.items.add(e.dataTransfer.files[0]);
-            input.files = dt.files;
-            input.dispatchEvent(new Event('change'));
-        }
     });
 
     // ── Spinner en botón guardar ──────────────────────────────

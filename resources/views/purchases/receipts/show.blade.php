@@ -76,7 +76,7 @@
                                         @endif
                                     </td>
                                     <td class="py-3 text-end fw-semibold text-success small">
-                                        {{ number_format($item->quantity, 2) }}
+                                        {{ number_format($item->quantity, 0) }}
                                     </td>
                                     <td class="py-3 text-end small text-muted pe-4">
                                         ${{ number_format($item->unit_cost ?? 0, 2) }}

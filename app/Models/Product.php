@@ -37,8 +37,8 @@ class Product extends Model
     protected $casts = [
         'cost'          => 'decimal:2',
         'price'         => 'decimal:2',
-        'min_stock'     => 'decimal:2',
-        'current_stock' => 'decimal:2',
+        'min_stock'     => 'integer',
+        'current_stock' => 'integer',
         'active'        => 'boolean',
         'deleted_at'    => 'datetime',
     ];

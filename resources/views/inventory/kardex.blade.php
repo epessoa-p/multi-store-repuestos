@@ -126,10 +126,10 @@
                                 </span>
                             </td>
                             <td class="text-end text-success fw-semibold">
-                                {{ in_array($mov->type, ['in','adjustment']) ? number_format($mov->quantity, 2) : '—' }}
+                                {{ in_array($mov->type, ['in','adjustment']) ? number_format($mov->quantity, 0) : '—' }}
                             </td>
                             <td class="text-end text-danger fw-semibold">
-                                {{ in_array($mov->type, ['out','transfer']) ? number_format($mov->quantity, 2) : '—' }}
+                                {{ in_array($mov->type, ['out','transfer']) ? number_format($mov->quantity, 0) : '—' }}
                             </td>
                             <td class="text-muted" style="font-size:.82rem;">{{ $mov->reference ?: '—' }}</td>
                             <td style="font-size:.82rem;">{{ $mov->user?->name ?: '—' }}</td>

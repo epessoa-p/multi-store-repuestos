@@ -2,6 +2,12 @@
     $isEdit = isset($unit);
     $action = $isEdit ? route('moto-units.update', $unit) : route('moto-units.store');
     $method = $isEdit ? 'PUT' : 'POST';
+
+    // Marca filtra al modelo (la unidad no guarda marca: proviene del modelo).
+    $currentModelId = (string) old('moto_model_id', $isEdit ? $unit->moto_model_id : '');
+    $brandList      = $models->map(fn ($m) => $m->brand)->filter()->unique('id')->sortBy('name')->values();
+    $currentBrandId = (string) (optional($models->firstWhere('id', (int) $currentModelId))->moto_brand_id
+                        ?? old('moto_brand_filter', ''));
 @endphp
 
 @if($errors->any())
@@ -31,6 +37,20 @@
                     <div class="row g-3">
 
                         <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="moto_brand_filter">
+                                Marca <span class="text-danger">*</span>
+                            </label>
+                            <select id="moto_brand_filter" name="moto_brand_filter" class="form-select" data-no-search required>
+                                <option value="">— Seleccionar marca —</option>
+                                @foreach($brandList as $b)
+                                <option value="{{ $b->id }}" {{ $currentBrandId === (string) $b->id ? 'selected' : '' }}>
+                                    {{ $b->name }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
                             <label class="form-label fw-semibold" for="moto_model_id">
                                 Modelo <span class="text-danger">*</span>
                             </label>
@@ -38,8 +58,8 @@
                                     class="form-select @error('moto_model_id') is-invalid @enderror" required>
                                 <option value="">— Seleccionar modelo —</option>
                                 @foreach($models as $m)
-                                <option value="{{ $m->id }}"
-                                        {{ old('moto_model_id', $isEdit ? $unit->moto_model_id : '') == $m->id ? 'selected' : '' }}>
+                                <option value="{{ $m->id }}" data-brand="{{ $m->moto_brand_id }}"
+                                        {{ $currentModelId === (string) $m->id ? 'selected' : '' }}>
                                     {{ $m->display_name }}
                                 </option>
                                 @endforeach
@@ -197,3 +217,45 @@
     </div>
 
 </form>
+
+@push('scripts')
+<script>
+(function () {
+    const brandSel = document.getElementById('moto_brand_filter');
+    const modelSel = document.getElementById('moto_model_id');
+    if (!brandSel || !modelSel) return;
+
+    // Copia de todas las opciones de modelo (con su marca)
+    const allOpts = Array.from(modelSel.options)
+        .filter(o => o.value)
+        .map(o => ({ value: o.value, text: o.textContent.trim(), brand: o.getAttribute('data-brand') || '' }));
+
+    function refreshSelect2(el) {
+        if (window.jQuery && jQuery.fn.select2) {
+            const $e = jQuery(el);
+            if ($e.data('select2')) $e.select2('destroy');
+            el.removeAttribute('data-select2-done');
+            if (typeof window.initSelect2 === 'function') window.initSelect2(el.parentNode);
+        }
+    }
+
+    function filterModels(keepValue) {
+        const brand = brandSel.value;
+        modelSel.innerHTML = '<option value="">— Seleccionar modelo —</option>';
+        allOpts.filter(o => !brand || o.brand === brand).forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value; opt.textContent = o.text; opt.setAttribute('data-brand', o.brand);
+            if (o.value === keepValue) opt.selected = true;
+            modelSel.appendChild(opt);
+        });
+        refreshSelect2(modelSel);
+    }
+
+    // Al cambiar la marca, limpiar el modelo seleccionado
+    brandSel.addEventListener('change', () => filterModels(''));
+
+    // Estado inicial (edición / old input): filtrar conservando el modelo actual
+    document.addEventListener('DOMContentLoaded', () => filterModels(modelSel.value));
+})();
+</script>
+@endpush

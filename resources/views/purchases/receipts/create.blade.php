@@ -8,6 +8,9 @@
             <h1 class="mb-1 fw-bold fs-4"><i class="bi bi-box-arrow-in-down me-2 text-danger"></i>Recepcionar mercadería</h1>
             <p class="text-muted mb-0 small">
                 Orden <strong>{{ $order->code }}</strong> &mdash; {{ $order->supplier->name }}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">
+                    <i class="bi bi-receipt me-1"></i>Registra la compra automáticamente
+                </span>
             </p>
         </div>
         <a href="{{ route('purchase-orders.show', $order) }}" class="btn btn-light border">
@@ -64,6 +67,24 @@
                                        required>
                                 @error('receipt_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="invoice_number">N° de factura</label>
+                                <input type="text" id="invoice_number" name="invoice_number"
+                                       class="form-control @error('invoice_number') is-invalid @enderror"
+                                       value="{{ old('invoice_number') }}" maxlength="100"
+                                       placeholder="N° de la factura del proveedor (opcional)">
+                                @error('invoice_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="tax">Impuesto</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">$</span>
+                                    <input type="number" id="tax" name="tax" step="0.01" min="0"
+                                           class="form-control @error('tax') is-invalid @enderror"
+                                           value="{{ old('tax', 0) }}" placeholder="0.00">
+                                </div>
+                                @error('tax')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold" for="notes">Notas</label>
                                 <textarea id="notes" name="notes" rows="2"
@@ -107,14 +128,14 @@
                                             <small class="text-muted">{{ $item->product->sku }}</small>
                                             @endif
                                         </td>
-                                        <td class="py-3 text-end small text-muted">{{ number_format($item->quantity, 2) }}</td>
-                                        <td class="py-3 text-end small text-success">{{ number_format($received, 2) }}</td>
-                                        <td class="py-3 text-end small text-warning fw-semibold">{{ number_format($pending, 2) }}</td>
+                                        <td class="py-3 text-end small text-muted">{{ number_format($item->quantity, 0) }}</td>
+                                        <td class="py-3 text-end small text-success">{{ number_format($received, 0) }}</td>
+                                        <td class="py-3 text-end small text-warning fw-semibold">{{ number_format($pending, 0) }}</td>
                                         <td class="py-3 text-end pe-4">
                                             <input type="number" name="items[{{ $i }}][quantity]"
                                                    class="form-control form-control-sm text-end"
                                                    style="width:110px;display:inline-block"
-                                                   step="0.01" min="0.01" max="{{ $pending }}"
+                                                   step="1" min="1" inputmode="numeric" max="{{ $pending }}"
                                                    value="{{ old("items.{$i}.quantity", $pending) }}"
                                                    required>
                                         </td>
@@ -156,7 +177,7 @@
                 </div>
                 <div class="d-flex flex-column gap-2">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-check-lg me-1"></i>Confirmar recepción
+                        <i class="bi bi-check-lg me-1"></i>Confirmar recepción y registrar compra
                     </button>
                     <a href="{{ route('purchase-orders.show', $order) }}" class="btn btn-light border w-100">
                         <i class="bi bi-x-lg me-1"></i>Cancelar

@@ -32,9 +32,10 @@
                 <div class="d-flex gap-2 flex-wrap">
                     @if($purchase->balance > 0)
                         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('accounts-payable.pay', auth()->user()->getCurrentCompany()))
-                        <a href="{{ route('accounts-payable.index') }}" class="btn btn-primary btn-sm">
+                        <button type="button" class="btn btn-primary btn-sm"
+                                data-bs-toggle="modal" data-bs-target="#payModal{{ $purchase->id }}">
                             <i class="bi bi-cash-coin me-1"></i>Registrar pago
-                        </a>
+                        </button>
                         @endif
                     @endif
                     @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases.delete', auth()->user()->getCurrentCompany()))
@@ -83,7 +84,7 @@
                                         <small class="text-muted">{{ $item->product->sku }}</small>
                                         @endif
                                     </td>
-                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 0) }}</td>
                                     <td class="py-3 text-end small">${{ number_format($item->unit_cost, 2) }}</td>
                                     <td class="py-3 text-end fw-semibold small pe-4">${{ number_format($item->quantity * $item->unit_cost, 2) }}</td>
                                 </tr>
@@ -258,4 +259,170 @@
     </div>
 
 </div>
+
+{{-- Modal de registro de pago --}}
+@if($purchase->balance > 0 && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('accounts-payable.pay', auth()->user()->getCurrentCompany())))
+@php $hasCaja = (bool) $cashSession; @endphp
+<div class="modal fade" id="payModal{{ $purchase->id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-semibold">
+                    <i class="bi bi-cash-coin me-2 text-muted"></i>Registrar pago
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form action="{{ route('accounts-payable.payment', $purchase) }}" method="POST">
+                @csrf
+                <div class="modal-body p-4">
+
+                    {{-- Info de la factura --}}
+                    <div class="rounded-3 border p-3 mb-4 bg-light">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ $purchase->code }}</div>
+                                <div class="text-muted small">{{ $purchase->supplier->name }}</div>
+                            </div>
+                            <span class="badge bg-{{ $purchase->payment_status_color }}-subtle text-{{ $purchase->payment_status_color }} border border-{{ $purchase->payment_status_color }}-subtle">
+                                {{ $purchase->payment_status_label }}
+                            </span>
+                        </div>
+                        <div class="row g-2 small">
+                            <div class="col-4">
+                                <div class="text-muted">Total</div>
+                                <div class="fw-semibold">${{ number_format($purchase->total, 2) }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted">Pagado</div>
+                                <div class="fw-semibold text-success">${{ number_format($purchase->paid_amount, 2) }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-muted">Saldo</div>
+                                <div class="fw-bold text-danger fs-6">${{ number_format($purchase->balance, 2) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Origen del pago: Caja del personal / Cuenta de tesorería --}}
+                    <input type="hidden" name="payment_source" class="pay-source-input" value="{{ $hasCaja ? 'caja' : 'tesoreria' }}">
+                    <ul class="nav nav-pills nav-fill gap-2 mb-3" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link {{ $hasCaja ? 'active' : '' }}" type="button"
+                                    data-bs-toggle="pill" data-bs-target="#srcCaja{{ $purchase->id }}"
+                                    {{ $hasCaja ? '' : 'disabled' }}>
+                                <i class="bi bi-cash-stack me-1"></i>Caja
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link {{ $hasCaja ? '' : 'active' }}" type="button"
+                                    data-bs-toggle="pill" data-bs-target="#srcTes{{ $purchase->id }}">
+                                <i class="bi bi-bank me-1"></i>Cuenta de tesorería
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mb-3">
+                        {{-- Caja del personal --}}
+                        <div class="tab-pane fade {{ $hasCaja ? 'show active' : '' }}" id="srcCaja{{ $purchase->id }}">
+                            @if($hasCaja)
+                            <div class="d-flex align-items-center justify-content-between rounded-3 px-3 py-2"
+                                 style="background:#f0fbf4;border:1px solid #c9efd6;">
+                                <span class="small fw-semibold text-success-emphasis">
+                                    <i class="bi bi-cash-stack me-1"></i>{{ $cashSession->cashRegister->name ?? 'Caja' }}
+                                </span>
+                                <span class="fw-bold text-success">Disponible: Bs. {{ number_format($cashSession->expectedBalance(), 2) }}</span>
+                            </div>
+                            <div class="form-text">El pago saldrá de tu caja abierta como egreso.</div>
+                            @else
+                            <div class="alert alert-warning border-0 small mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>No tienes una caja abierta. Usa una cuenta de tesorería.
+                            </div>
+                            @endif
+                        </div>
+
+                        {{-- Cuenta de tesorería --}}
+                        <div class="tab-pane fade {{ $hasCaja ? '' : 'show active' }}" id="srcTes{{ $purchase->id }}">
+                            <label class="form-label fw-semibold" for="ta_{{ $purchase->id }}">
+                                Cuenta de tesorería <span class="text-danger">*</span>
+                            </label>
+                            <select id="ta_{{ $purchase->id }}" name="treasury_account_id"
+                                    class="form-select @error('treasury_account_id') is-invalid @enderror"
+                                    {{ $hasCaja ? '' : 'required' }}>
+                                <option value="">— Seleccionar cuenta —</option>
+                                @foreach($accounts as $account)
+                                <option value="{{ $account->id }}" {{ old('treasury_account_id') == $account->id ? 'selected' : '' }}>
+                                    {{ $account->name }} (saldo: ${{ number_format($account->balance, 2) }})
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('treasury_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="amt_{{ $purchase->id }}">Monto <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">$</span>
+                                <input type="number" id="amt_{{ $purchase->id }}" name="amount"
+                                       step="0.01" min="0.01" max="{{ $purchase->balance }}"
+                                       class="form-control @error('amount') is-invalid @enderror"
+                                       value="{{ old('amount', number_format($purchase->balance, 2, '.', '')) }}" required>
+                            </div>
+                            @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="pd_{{ $purchase->id }}">Fecha de pago <span class="text-danger">*</span></label>
+                            <input type="date" id="pd_{{ $purchase->id }}" name="payment_date"
+                                   class="form-control @error('payment_date') is-invalid @enderror"
+                                   value="{{ old('payment_date', now()->format('Y-m-d')) }}" required>
+                            @error('payment_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Método de pago</label>
+                        <input type="hidden" name="method" value="efectivo">
+                        <input type="text" class="form-control" value="Efectivo" disabled>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold" for="notes_{{ $purchase->id }}">Notas</label>
+                        <textarea id="notes_{{ $purchase->id }}" name="notes" class="form-control" rows="2"
+                                  placeholder="Observaciones del pago...">{{ old('notes') }}</textarea>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>Registrar pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+(function () {
+    document.addEventListener('shown.bs.tab', function (e) {
+        const btn   = e.target;
+        const modal = btn.closest('.modal');
+        if (!modal || !btn.dataset.bsTarget) return;
+        const isCaja   = btn.dataset.bsTarget.indexOf('srcCaja') !== -1;
+        const hidden   = modal.querySelector('.pay-source-input');
+        const treasury = modal.querySelector('select[name="treasury_account_id"]');
+        if (hidden) hidden.value = isCaja ? 'caja' : 'tesoreria';
+        if (treasury) {
+            if (isCaja) treasury.removeAttribute('required');
+            else        treasury.setAttribute('required', 'required');
+        }
+    });
+})();
+</script>
+@endpush
+@endif
+
 @endsection

@@ -174,7 +174,7 @@
                                                     @foreach($receipt->items as $ri)
                                                     <div class="d-flex justify-content-between text-muted">
                                                         <span class="text-truncate me-2" style="max-width:160px;">{{ $ri->product?->name }}</span>
-                                                        <span class="flex-shrink-0">{{ number_format($ri->quantity,2) }} u.</span>
+                                                        <span class="flex-shrink-0">{{ number_format($ri->quantity, 0) }} u.</span>
                                                     </div>
                                                     @endforeach
                                                 </div>
@@ -366,7 +366,7 @@ function addItemRow(productId, quantity, unitCost, locked) {
                 </select>
             </td>
             <td>
-                <input type="number" name="items[${idx}][quantity]" step="0.01" min="0.01"
+                <input type="number" name="items[${idx}][quantity]" step="1" min="1" inputmode="numeric"
                        class="form-control form-control-sm qty-input text-end" required
                        value="${quantity || ''}" placeholder="1"
                        oninput="recalcRow(${idx})">
@@ -407,7 +407,7 @@ function onProductChange(select, idx) {
 function recalcRow(idx) {
     const row  = document.querySelector(`tr[data-index="${idx}"]`);
     if (!row) return;
-    const qty  = parseFloat(row.querySelector('.qty-input')?.value)  || 0;
+    const qty  = parseInt(row.querySelector('.qty-input')?.value, 10)  || 0;
     const cost = parseFloat(row.querySelector('.cost-input')?.value) || 0;
     const cell = row.querySelector('.subtotal-cell');
     if (cell) cell.textContent = '$' + (qty * cost).toFixed(2);

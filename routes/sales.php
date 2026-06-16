@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/create',      [SaleController::class, 'create'])->name('create')->middleware('check-permission:sales.create');
         Route::post('/',           [SaleController::class, 'store'])->name('store')->middleware('check-permission:sales.create');
         Route::get('/{sale}',      [SaleController::class, 'show'])->name('show')->middleware('check-permission:sales.view');
+        Route::get('/{sale}/receipt', [SaleController::class, 'receipt'])->name('receipt')->middleware('check-permission:sales.view');
         Route::post('/{sale}/cancel', [SaleController::class, 'cancel'])->name('cancel')->middleware('check-permission:sales.delete');
     });
 

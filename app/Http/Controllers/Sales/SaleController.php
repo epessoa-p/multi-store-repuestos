@@ -47,8 +47,19 @@ class SaleController extends Controller
             $query->where('branch_id', $activeBranch);
         }
 
-        $branches = Branch::when($cid, fn ($q) => $q->where('company_id', $cid))
-            ->orderBy('name')->get(['id', 'name']);
+        // Sucursales para los tabs: solo la(s) sucursal(es) de la caja asignada al personal.
+        // El super admin (o un personal sin caja asignada) sigue viendo todas las de la empresa.
+        $branchesQuery = Branch::when($cid, fn ($q) => $q->where('company_id', $cid));
+        $personal = $user->personal;
+        if (!$user->is_super_admin && $personal) {
+            $branchIds = \App\Models\CashRegister::where('assigned_personal_id', $personal->id)
+                ->whereNotNull('branch_id')
+                ->pluck('branch_id')->unique();
+            if ($branchIds->isNotEmpty()) {
+                $branchesQuery->whereIn('id', $branchIds);
+            }
+        }
+        $branches = $branchesQuery->orderBy('name')->get(['id', 'name']);
 
         return view('sales.invoices.index', [
             'sales'        => $query->paginate(15)->withQueryString(),
@@ -200,7 +211,7 @@ class SaleController extends Controller
             'notes'              => 'nullable|string',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|numeric|min:0.01',
+            'items.*.quantity'   => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.discount'   => 'nullable|numeric|min:0',
             'installments'             => 'nullable|array',
@@ -293,6 +304,18 @@ class SaleController extends Controller
         return view('sales.invoices.show', compact(
             'sale', 'returnedByItem', 'returnableLeft', 'hasReturns', 'fullyReturned', 'totalReturned'
         ));
+    }
+
+    /** Recibo térmico 80mm (vista standalone, auto-imprime) */
+    public function receipt(Sale $sale)
+    {
+        $this->authorizeSale($sale);
+        $sale->load([
+            'client', 'branch', 'company', 'createdBy',
+            'items.product', 'session.cashRegister',
+        ]);
+
+        return view('sales.invoices.receipt', compact('sale'));
     }
 
     public function cancel(Sale $sale)

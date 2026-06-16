@@ -108,6 +108,16 @@
                         </div>
 
                         <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="code">Código</label>
+                            <input type="text" id="code" name="code"
+                                   class="form-control @error('code') is-invalid @enderror"
+                                   value="{{ old('code', $isEdit ? $product->code : '') }}"
+                                   maxlength="100"
+                                   placeholder="Código interno / referencia">
+                            @error('code')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="col-md-4">
                             <label class="form-label fw-semibold" for="barcode">Código de barras</label>
                             <input type="text" id="barcode" name="barcode"
                                    class="form-control @error('barcode') is-invalid @enderror"
@@ -117,17 +127,8 @@
                             @error('barcode')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold" for="unit">
-                                Unidad de medida <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" id="unit" name="unit"
-                                   class="form-control @error('unit') is-invalid @enderror"
-                                   value="{{ old('unit', $isEdit ? $product->unit : 'unidad') }}"
-                                   required maxlength="50"
-                                   placeholder="unidad, par, kit...">
-                            @error('unit')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
+                        {{-- La unidad de medida siempre es "unidad" --}}
+                        <input type="hidden" name="unit" value="unidad">
 
                         <div class="col-12">
                             <label class="form-label fw-semibold" for="moto_models">
@@ -272,25 +273,10 @@
                     @endif
 
                     {{-- Upload new photos --}}
-                    <div class="upload-area rounded-3 border border-2 border-dashed p-4 text-center"
-                         id="uploadArea"
-                         onclick="document.getElementById('photosInput').click()"
-                         style="cursor:pointer;border-color:#dee2e6;transition:border-color .2s">
-                        <i class="bi bi-cloud-arrow-up fs-2 text-muted d-block mb-2"></i>
-                        <p class="mb-0 fw-semibold text-muted small">Haz clic o arrastra fotos aquí</p>
-                        <p class="text-muted" style="font-size:.78rem">JPG, PNG, WebP · Máx 3 MB cada una · Hasta 8 fotos</p>
-                    </div>
-
-                    <input type="file" id="photosInput" name="photos[]"
-                           accept="image/*" multiple class="d-none"
-                           onchange="handlePhotoSelect(this)">
-
-                    <div id="selectedFilesInfo" class="mt-2 d-none">
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="fileCount"></span>
-                    </div>
-
-                    {{-- Preview thumbnails --}}
-                    <div id="photoPreviewGrid" class="row g-2 mt-2"></div>
+                    <x-media-upload name="photos[]" :multiple="true" :bare="true"
+                        accent="#e10600" :max-mb="3" :max-files="8"
+                        drop-text="Arrastra fotos aquí"
+                        hint="JPG, PNG, WebP · máx. 3MB · hasta 8 fotos" />
 
                     <div class="form-text text-muted mt-2">
                         <i class="bi bi-info-circle me-1"></i>
@@ -340,52 +326,6 @@ function calcMargin() {
 }
 calcMargin();
 
-function handlePhotoSelect(input) {
-    const files   = Array.from(input.files);
-    const info    = document.getElementById('selectedFilesInfo');
-    const count   = document.getElementById('fileCount');
-    const grid    = document.getElementById('photoPreviewGrid');
-    const hidden  = document.createElement('input');
-
-    grid.innerHTML = '';
-    if (!files.length) { info.classList.add('d-none'); return; }
-
-    info.classList.remove('d-none');
-    count.textContent = files.length + ' foto' + (files.length > 1 ? 's' : '') + ' seleccionada' + (files.length > 1 ? 's' : '');
-
-    files.forEach((file, i) => {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const col  = document.createElement('div');
-            col.className = 'col-4';
-            col.innerHTML = `
-                <div class="position-relative rounded-2 overflow-hidden border ${i === 0 ? 'border-danger border-2' : ''}" style="aspect-ratio:1">
-                    <img src="${e.target.result}" class="w-100 h-100" style="object-fit:cover">
-                    ${i === 0 ? '<span class="position-absolute bottom-0 start-0 end-0 text-center bg-danger text-white" style="font-size:.65rem;padding:2px 0">Principal</span>' : ''}
-                </div>
-                <p class="mt-1 mb-0 text-muted text-truncate" style="font-size:.72rem">${file.name}</p>`;
-            grid.appendChild(col);
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // Drag visual
-    document.getElementById('uploadArea').style.borderColor = 'var(--brand-red)';
-}
-
-// Drag & drop
-const ua = document.getElementById('uploadArea');
-ua.addEventListener('dragover', e => { e.preventDefault(); ua.style.borderColor = 'var(--brand-red)'; ua.style.background = 'rgba(225,6,0,.03)'; });
-ua.addEventListener('dragleave', () => { ua.style.borderColor = '#dee2e6'; ua.style.background = ''; });
-ua.addEventListener('drop', e => {
-    e.preventDefault();
-    ua.style.borderColor = '#dee2e6';
-    ua.style.background = '';
-    const input = document.getElementById('photosInput');
-    const dt = new DataTransfer();
-    Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
-    input.files = dt.files;
-    handlePhotoSelect(input);
-});
+// Las fotos del producto ahora se gestionan con el componente media-upload.
 </script>
 @endpush

@@ -26,6 +26,13 @@
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('statistics.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('statistics.*') ? 'active' : '' }}" href="{{ route('statistics.index') }}">
+                    <i class="bi bi-bar-chart-line"></i> Estadísticas
+                </a>
+            </li>
+            @endif
             @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('document-templates.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}">
@@ -90,6 +97,57 @@
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('cash.movements') ? 'active' : '' }}" href="{{ route('cash.movements') }}">
                     <i class="bi bi-arrow-left-right"></i> Movimientos
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('expense-services.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('expense-services.*') ? 'active' : '' }}" href="{{ route('expense-services.index') }}">
+                    <i class="bi bi-receipt-cutoff"></i> Servicios de gasto
+                </a>
+            </li>
+            @endif
+        </ul>
+
+        <div class="sidebar-section-title mt-4">Inventario</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">
+                    <i class="bi bi-box-seam"></i> Productos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">
+                    <i class="bi bi-clipboard-data"></i> Inventario
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
+                    <i class="bi bi-building-add"></i> Almacenes
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}">
+                    <i class="bi bi-tags"></i> Categorías
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}">
+                    <i class="bi bi-award"></i> Marcas
+                </a>
+            </li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}">
+                    <i class="bi bi-journal-text"></i> Kardex
                 </a>
             </li>
             @endif
@@ -472,49 +530,6 @@
         </ul>
         @endif
 
-        <div class="sidebar-section-title mt-4">Inventario</div>
-        <ul class="nav flex-column gap-1">
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">
-                    <i class="bi bi-box-seam"></i> Productos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">
-                    <i class="bi bi-clipboard-data"></i> Inventario
-                </a>
-            </li>
-            @endif
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}">
-                    <i class="bi bi-building-add"></i> Almacenes
-                </a>
-            </li>
-            @endif
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}">
-                    <i class="bi bi-tags"></i> Categorías
-                </a>
-            </li>
-            @endif
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}">
-                    <i class="bi bi-award"></i> Marcas
-                </a>
-            </li>
-            @endif
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}">
-                    <i class="bi bi-journal-text"></i> Kardex
-                </a>
-            </li>
-            @endif
-        </ul>
     </aside>
 
     <main class="app-main">
@@ -553,6 +568,7 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    @include('partials.expense-btn')
                     @include('partials.cash-register-btn')
                     <div class="dropdown">
                         <button class="btn btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -618,6 +634,9 @@
             <div class="sidebar-section-title">General</div>
             <ul class="nav flex-column gap-1 mb-3">
                 <li><a class="nav-link app-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('statistics.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('statistics.*') ? 'active' : '' }}" href="{{ route('statistics.index') }}"><i class="bi bi-bar-chart-line me-2"></i>Estadísticas</a></li>
+                @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('document-templates.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('document-templates.*') ? 'active' : '' }}" href="{{ route('document-templates.index') }}"><i class="bi bi-file-earmark-ruled me-2"></i>Plantillas</a></li>
                 @endif
@@ -648,6 +667,29 @@
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('cash-registers.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('cash-registers.*') ? 'active' : '' }}" href="{{ route('cash-registers.index') }}"><i class="bi bi-safe2 me-2"></i>Cajas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('cash.movements') ? 'active' : '' }}" href="{{ route('cash.movements') }}"><i class="bi bi-arrow-left-right me-2"></i>Movimientos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('expense-services.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('expense-services.*') ? 'active' : '' }}" href="{{ route('expense-services.index') }}"><i class="bi bi-receipt-cutoff me-2"></i>Servicios de gasto</a></li>
+                @endif
+            </ul>
+
+            <div class="sidebar-section-title">Inventario</div>
+            <ul class="nav flex-column gap-1">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}"><i class="bi bi-box-seam me-2"></i>Productos</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}"><i class="bi bi-clipboard-data me-2"></i>Inventario</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}"><i class="bi bi-building-add me-2"></i>Almacenes</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}"><i class="bi bi-tags me-2"></i>Categorías</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}"><i class="bi bi-award me-2"></i>Marcas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}"><i class="bi bi-journal-text me-2"></i>Kardex</a></li>
                 @endif
             </ul>
 
@@ -801,25 +843,6 @@
             </ul>
             @endif
 
-            <div class="sidebar-section-title">Inventario</div>
-            <ul class="nav flex-column gap-1">
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
-                <li><a class="nav-link app-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}"><i class="bi bi-box-seam me-2"></i>Productos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('inventory.stock*') ? 'active' : '' }}" href="{{ route('inventory.stock') }}"><i class="bi bi-clipboard-data me-2"></i>Inventario</a></li>
-                @endif
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('warehouses.view', $currentCompany))
-                <li><a class="nav-link app-link {{ request()->routeIs('warehouses.*') ? 'active' : '' }}" href="{{ route('warehouses.index') }}"><i class="bi bi-building-add me-2"></i>Almacenes</a></li>
-                @endif
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-categories.view', $currentCompany))
-                <li><a class="nav-link app-link {{ request()->routeIs('product-categories.*') ? 'active' : '' }}" href="{{ route('product-categories.index') }}"><i class="bi bi-tags me-2"></i>Categorías</a></li>
-                @endif
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
-                <li><a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}"><i class="bi bi-award me-2"></i>Marcas</a></li>
-                @endif
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
-                <li><a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}"><i class="bi bi-journal-text me-2"></i>Kardex</a></li>
-                @endif
-            </ul>
         </nav>
     </div>
 </div>

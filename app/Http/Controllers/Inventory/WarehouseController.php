@@ -142,7 +142,7 @@ class WarehouseController extends Controller
         $rules = [
             'product_id'               => ['required', 'exists:products,id'],
             'type'                     => ['required', Rule::in(['in', 'out', 'transfer', 'adjustment'])],
-            'quantity'                 => 'required|numeric|min:0.01',
+            'quantity'                 => 'required|integer|min:1',
             'unit_cost'                => 'nullable|numeric|min:0',
             'reference'                => 'nullable|string|max:100',
             'notes'                    => 'nullable|string',

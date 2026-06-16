@@ -49,8 +49,21 @@ class StockController extends Controller
         $brands = ProductBrand::when($cid, fn ($q) => $q->where('company_id', $cid))
             ->where('active', true)->orderBy('name')->get(['id', 'name']);
 
+        // ── KPIs de valor de stock (según almacén seleccionado) ──
+        $stockOf = fn ($p) => $isAll ? (float) $p->current_stock : (float) ($stockMap[$p->id] ?? 0);
+        $totalUnits = 0.0; $valueCost = 0.0; $valuePrice = 0.0;
+        foreach ($products as $p) {
+            $s = $stockOf($p);
+            $totalUnits += $s;
+            $valueCost  += $s * (float) $p->cost;
+            $valuePrice += $s * (float) $p->price;
+        }
+        $productCount    = $products->count();
+        $potentialProfit = $valuePrice - $valueCost;
+
         return view('inventory.stock.index', compact(
-            'products', 'warehouses', 'categories', 'brands', 'activeWarehouse', 'isAll', 'whId', 'stockMap'
+            'products', 'warehouses', 'categories', 'brands', 'activeWarehouse', 'isAll', 'whId', 'stockMap',
+            'productCount', 'totalUnits', 'valueCost', 'valuePrice', 'potentialProfit'
         ));
     }
 
@@ -85,7 +98,7 @@ class StockController extends Controller
 
         $validated = $request->validate([
             'warehouse_id' => 'required|exists:warehouses,id',
-            'quantity'     => 'required|numeric|min:0',
+            'quantity'     => 'required|integer|min:0',
         ]);
 
         try {
@@ -141,7 +154,100 @@ class StockController extends Controller
         return view('inventory.stock.import', compact('warehouses'));
     }
 
-    /** Procesa la migración de inventario desde Excel */
+    /** Resuelve company + warehouse validando pertenencia (helper común). */
+    private function resolveCompanyWarehouse(Request $request): array
+    {
+        $user      = auth()->user();
+        $companyId = $user->is_super_admin ? $request->company_id : $user->getCurrentCompany()?->id;
+        if (!$companyId) {
+            abort(response()->json(['ok' => false, 'message' => 'No hay una empresa activa.'], 422));
+        }
+        $warehouse = Warehouse::findOrFail($request->warehouse_id);
+        if (!$user->is_super_admin && $warehouse->company_id !== $companyId) {
+            abort(403);
+        }
+        return [$companyId, $warehouse];
+    }
+
+    /** Paso 1→2: parsea el Excel y devuelve las filas (sin persistir) para revisar/editar. */
+    public function previewImport(Request $request)
+    {
+        $request->validate([
+            'file'         => 'required|file|mimes:xlsx,xls|max:5120',
+            'warehouse_id' => 'required|exists:warehouses,id',
+        ]);
+
+        [$companyId, $warehouse] = $this->resolveCompanyWarehouse($request);
+
+        try {
+            $path     = $request->file('file')->store('imports', 'local');
+            $fullPath = Storage::disk('local')->path($path);
+            $rows     = $this->parseRows($fullPath);
+            Storage::disk('local')->delete($path);
+
+            // Enriquecer con estado (nuevo/actualiza) y valores actuales
+            $existing = Product::where('company_id', $companyId)->get(['name', 'cost', 'price'])
+                ->keyBy(fn ($p) => mb_strtolower($p->name));
+
+            foreach ($rows as &$r) {
+                $ex = $existing->get(mb_strtolower($r['name']));
+                $r['status']        = $ex ? 'update' : 'new';
+                $r['current_cost']  = $ex ? (float) $ex->cost : null;
+                $r['current_price'] = $ex ? (float) $ex->price : null;
+            }
+            unset($r);
+
+            return response()->json([
+                'ok'        => true,
+                'rows'      => array_values($rows),
+                'warehouse' => $warehouse->name,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al previsualizar importación', ['msg' => $e->getMessage()]);
+            return response()->json(['ok' => false, 'message' => 'No se pudo leer el archivo: ' . $e->getMessage()], 422);
+        }
+    }
+
+    /** Paso 3: confirma la importación a partir de las filas revisadas/editadas. */
+    public function confirmImport(Request $request)
+    {
+        $request->validate([
+            'warehouse_id'   => 'required|exists:warehouses,id',
+            'rows'           => 'required|array|min:1',
+            'rows.*.name'    => 'nullable|string',
+        ]);
+
+        [$companyId, $warehouse] = $this->resolveCompanyWarehouse($request);
+
+        $counters = ['created' => 0, 'updated' => 0];
+        $errors   = [];
+
+        try {
+            DB::transaction(function () use ($request, $companyId, $warehouse, &$counters, &$errors) {
+                foreach ($request->input('rows', []) as $i => $d) {
+                    $name = trim((string) ($d['name'] ?? ''));
+                    if ($name === '') continue;
+                    try {
+                        $this->persistRow($d, $companyId, $warehouse, $counters);
+                    } catch (\Throwable $e) {
+                        $errors[] = "Fila " . ($i + 1) . " ({$name}): " . $e->getMessage();
+                    }
+                }
+            });
+
+            return response()->json([
+                'ok'      => true,
+                'created' => $counters['created'],
+                'updated' => $counters['updated'],
+                'errors'  => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al confirmar importación', ['msg' => $e->getMessage()]);
+            return response()->json(['ok' => false, 'message' => 'No se pudo importar: ' . $e->getMessage()], 422);
+        }
+    }
+
+    /** Procesa la migración directa desde Excel (fallback sin JS). */
     public function processImport(Request $request)
     {
         $request->validate([
@@ -154,7 +260,6 @@ class StockController extends Controller
         if (!$companyId) {
             return back()->withErrors(['error' => 'No hay una empresa activa.']);
         }
-
         $warehouse = Warehouse::findOrFail($request->warehouse_id);
         if (!$user->is_super_admin && $warehouse->company_id !== $companyId) {
             abort(403);
@@ -163,115 +268,25 @@ class StockController extends Controller
         try {
             $path     = $request->file('file')->store('imports', 'local');
             $fullPath = Storage::disk('local')->path($path);
-            $rows     = IOFactory::load($fullPath)->getActiveSheet()->toArray(null, true, true, true);
+            $rows     = $this->parseRows($fullPath);
+            Storage::disk('local')->delete($path);
 
-            $created = 0; $updated = 0; $errors = [];
+            $counters = ['created' => 0, 'updated' => 0];
+            $errors   = [];
 
-            DB::transaction(function () use ($rows, $companyId, $warehouse, &$created, &$updated, &$errors) {
-                foreach ($rows as $rowNum => $row) {
-                    if ($rowNum === 1) continue; // cabecera
-
-                    $name = $this->cleanText((string) ($row['A'] ?? ''));
-                    if ($name === '') continue;
-
+            DB::transaction(function () use ($rows, $companyId, $warehouse, &$counters, &$errors) {
+                foreach ($rows as $i => $d) {
                     try {
-                        $prodNum = $this->parseParenNumber((string) ($row['A'] ?? ''));
-                        $catRaw  = (string) ($row['B'] ?? '');
-                        $catName = $this->cleanText($catRaw);
-                        $catCode = $this->parseParenCode($catRaw);
-                        $brandName = $this->cleanText((string) ($row['C'] ?? ''));
-                        $modelsRaw = trim((string) ($row['D'] ?? ''));
-                        $notas   = trim((string) ($row['E'] ?? '')) ?: null;
-                        $cost    = (float) ($row['F'] ?? 0);
-                        $price   = (float) ($row['G'] ?? 0);
-                        $qty     = (float) ($row['H'] ?? 0);
-
-                        // Categoría (crea si no existe; asigna code si faltaba)
-                        $categoryId = null;
-                        if ($catName !== '') {
-                            $category = ProductCategory::firstOrCreate(
-                                ['company_id' => $companyId, 'name' => $catName],
-                                ['code' => $catCode, 'active' => true]
-                            );
-                            if ($catCode && !$category->code) {
-                                $category->update(['code' => $catCode]);
-                            }
-                            $categoryId = $category->id;
-                        }
-
-                        // Marca (crea si no existe)
-                        $brandId = null;
-                        if ($brandName !== '') {
-                            $brand = ProductBrand::firstOrCreate(
-                                ['company_id' => $companyId, 'name' => $brandName],
-                                ['active' => true]
-                            );
-                            $brandId = $brand->id;
-                        }
-
-                        // Código combinado categoría-producto
-                        $code = ($catCode !== null && $prodNum !== null)
-                            ? $catCode . '-' . str_pad((string) $prodNum, 4, '0', STR_PAD_LEFT)
-                            : null;
-
-                        // Buscar por nombre limpio (case-insensitive) dentro de la empresa
-                        $product = Product::where('company_id', $companyId)
-                            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
-                            ->first();
-
-                        $payload = [
-                            'category_id' => $categoryId,
-                            'brand_id'    => $brandId,
-                            'code'        => $code,
-                            'cost'        => $cost,
-                            'price'       => $price,
-                            'description' => $notas,
-                        ];
-
-                        if ($product) {
-                            $product->update($payload);
-                            $updated++;
-                        } else {
-                            $product = Product::create(array_merge($payload, [
-                                'company_id'    => $companyId,
-                                'name'          => $name,
-                                'sku'           => $this->generateSku($name, $companyId),
-                                'unit'          => 'unidad',
-                                'min_stock'     => 0,
-                                'current_stock' => 0,
-                                'active'        => true,
-                            ]));
-                            $created++;
-                        }
-
-                        // Modelos compatibles (col D): busca o crea cada uno y asocia
-                        if ($modelsRaw !== '') {
-                            $modelIds = [];
-                            foreach (explode(',', $modelsRaw) as $mRaw) {
-                                $mName = $this->cleanText($mRaw);
-                                if ($mName === '') continue;
-                                $model = MotoModel::firstOrCreate(
-                                    ['company_id' => $companyId, 'name' => $mName],
-                                    ['active' => true]
-                                );
-                                $modelIds[] = $model->id;
-                            }
-                            $product->motoModels()->syncWithoutDetaching($modelIds);
-                        }
-
-                        // Fijar stock del almacén
-                        $this->setWarehouseStock($product, $warehouse->id, $qty, $warehouse->company_id);
+                        $this->persistRow($d, $companyId, $warehouse, $counters);
                     } catch (\Throwable $e) {
-                        $errors[] = "Fila {$rowNum} ({$name}): " . $e->getMessage();
+                        $errors[] = "Fila " . ($i + 1) . " ({$d['name']}): " . $e->getMessage();
                     }
                 }
             });
 
-            Storage::disk('local')->delete($path);
-
             return back()->with('import_result', [
-                'created' => $created,
-                'updated' => $updated,
+                'created' => $counters['created'],
+                'updated' => $counters['updated'],
                 'errors'  => $errors,
             ]);
         } catch (\Throwable $e) {
@@ -281,6 +296,121 @@ class StockController extends Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────
+
+    /** Parsea el Excel a un arreglo de filas normalizadas (sin persistir). */
+    private function parseRows(string $fullPath): array
+    {
+        $raw = IOFactory::load($fullPath)->getActiveSheet()->toArray(null, true, true, true);
+        $out = [];
+        foreach ($raw as $rowNum => $row) {
+            if ($rowNum === 1) continue; // cabecera
+            $name = $this->cleanText((string) ($row['A'] ?? ''));
+            if ($name === '') continue;
+
+            $prodNum = $this->parseParenNumber((string) ($row['A'] ?? ''));
+            $catRaw  = (string) ($row['B'] ?? '');
+            $catCode = $this->parseParenCode($catRaw);
+            $code    = ($catCode !== null && $prodNum !== null)
+                ? $catCode . '-' . str_pad((string) $prodNum, 4, '0', STR_PAD_LEFT)
+                : null;
+
+            $out[] = [
+                'name'          => $name,
+                'category'      => $this->cleanText($catRaw),
+                'category_code' => $catCode,
+                'code'          => $code,
+                'brand'         => $this->cleanText((string) ($row['C'] ?? '')),
+                'models'        => trim((string) ($row['D'] ?? '')),
+                'notes'         => trim((string) ($row['E'] ?? '')),
+                'cost'          => (float) ($row['F'] ?? 0),
+                'price'         => (float) ($row['G'] ?? 0),
+                'qty'           => (float) ($row['H'] ?? 0),
+            ];
+        }
+        return $out;
+    }
+
+    /** Crea/actualiza un producto + categoría/marca/modelos y fija stock. */
+    private function persistRow(array $d, int $companyId, Warehouse $warehouse, array &$counters): void
+    {
+        $name = trim((string) ($d['name'] ?? ''));
+        if ($name === '') return;
+
+        // Categoría
+        $categoryId = null;
+        $catName = trim((string) ($d['category'] ?? ''));
+        $catCode = $d['category_code'] ?? null;
+        if ($catName !== '') {
+            $category = ProductCategory::firstOrCreate(
+                ['company_id' => $companyId, 'name' => $catName],
+                ['code' => $catCode, 'active' => true]
+            );
+            if ($catCode && !$category->code) {
+                $category->update(['code' => $catCode]);
+            }
+            $categoryId = $category->id;
+        }
+
+        // Marca
+        $brandId = null;
+        $brandName = trim((string) ($d['brand'] ?? ''));
+        if ($brandName !== '') {
+            $brand = ProductBrand::firstOrCreate(
+                ['company_id' => $companyId, 'name' => $brandName],
+                ['active' => true]
+            );
+            $brandId = $brand->id;
+        }
+
+        $payload = [
+            'category_id' => $categoryId,
+            'brand_id'    => $brandId,
+            'code'        => $d['code'] ?? null,
+            'cost'        => (float) ($d['cost'] ?? 0),
+            'price'       => (float) ($d['price'] ?? 0),
+            'description' => trim((string) ($d['notes'] ?? '')) ?: null,
+        ];
+
+        $product = Product::where('company_id', $companyId)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($product) {
+            $product->update($payload);
+            $counters['updated']++;
+        } else {
+            $product = Product::create(array_merge($payload, [
+                'company_id'    => $companyId,
+                'name'          => $name,
+                'sku'           => $this->generateSku($name, $companyId),
+                'unit'          => 'unidad',
+                'min_stock'     => 0,
+                'current_stock' => 0,
+                'active'        => true,
+            ]));
+            $counters['created']++;
+        }
+
+        // Modelos compatibles (CSV): busca o crea cada uno y asocia
+        $models    = $d['models'] ?? '';
+        $modelsRaw = is_array($models) ? implode(',', $models) : (string) $models;
+        if (trim($modelsRaw) !== '') {
+            $modelIds = [];
+            foreach (explode(',', $modelsRaw) as $mRaw) {
+                $mName = $this->cleanText($mRaw);
+                if ($mName === '') continue;
+                $model = MotoModel::firstOrCreate(
+                    ['company_id' => $companyId, 'name' => $mName],
+                    ['active' => true]
+                );
+                $modelIds[] = $model->id;
+            }
+            $product->motoModels()->syncWithoutDetaching($modelIds);
+        }
+
+        // Fijar stock del almacén
+        $this->setWarehouseStock($product, $warehouse->id, (float) ($d['qty'] ?? 0), $warehouse->company_id);
+    }
 
     /** Fija el stock de un almacén a $target creando un movimiento por la diferencia. */
     private function setWarehouseStock(Product $product, int $warehouseId, float $target, ?int $companyId = null): void

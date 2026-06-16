@@ -87,6 +87,7 @@
         </div>
     </div>
 
+    @php $canViewSale = auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', auth()->user()->getCurrentCompany()); @endphp
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -99,22 +100,15 @@
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Tipo</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Fecha</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Total</th>
-                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Estado pago</th>
-                            <th class="py-2 fw-semibold text-muted text-uppercase text-end pe-4" style="letter-spacing:.04em;font-size:.68rem;">Acciones</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase pe-4" style="letter-spacing:.04em;font-size:.68rem;">Estado pago</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($sales as $sale)
-                        <tr class="border-bottom border-light {{ $sale->status === 'cancelled' ? 'opacity-60' : '' }}">
+                        <tr class="border-bottom border-light {{ $sale->status === 'cancelled' ? 'opacity-60' : '' }} {{ $canViewSale ? 'sale-row' : '' }}"
+                            @if($canViewSale) onclick="window.location='{{ route('sales.show', $sale) }}'" @endif>
                             <td class="ps-4 py-1">
-                                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', auth()->user()->getCurrentCompany()))
-                                <a href="{{ route('sales.show', $sale) }}"
-                                   class="text-decoration-none fw-semibold {{ $sale->status === 'cancelled' ? 'text-muted text-decoration-line-through' : 'text-dark' }}">
-                                    {{ $sale->code }}
-                                </a>
-                                @else
-                                <span class="fw-semibold {{ $sale->status === 'cancelled' ? 'text-muted text-decoration-line-through' : '' }}">{{ $sale->code }}</span>
-                                @endif
+                                <span class="fw-semibold {{ $sale->status === 'cancelled' ? 'text-muted text-decoration-line-through' : 'text-dark' }}">{{ $sale->code }}</span>
                                 @if($sale->status === 'cancelled')
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size:.62rem;">Anulada</span>
                                 @endif
@@ -128,7 +122,7 @@
                             </td>
                             <td class="py-1 small text-muted">{{ $sale->sale_date->format('d/m/Y') }}</td>
                             <td class="py-1 text-end fw-semibold">${{ number_format($sale->total, 2) }}</td>
-                            <td class="py-1">
+                            <td class="py-1 pe-4">
                                 <span class="badge bg-{{ $sale->payment_status_color }}-subtle text-{{ $sale->payment_status_color }} border border-{{ $sale->payment_status_color }}-subtle" style="font-size:.66rem;">
                                     {{ $sale->payment_status_label }}
                                 </span>
@@ -138,17 +132,10 @@
                                 </span>
                                 @endif
                             </td>
-                            <td class="py-1 text-end pe-4">
-                                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', auth()->user()->getCurrentCompany()))
-                                <a href="{{ route('sales.show', $sale) }}" class="btn btn-sm btn-light border py-0 px-2" title="Ver detalle">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                @endif
-                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="7" class="text-center py-5 text-muted">
                                 <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
                                 <p class="mb-0">No hay ventas registradas.</p>
                                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.create', auth()->user()->getCurrentCompany()))
@@ -204,6 +191,9 @@
     border-color: var(--brand-black, #0a0a0a);
     color: #fff;
 }
+/* Filas clicables → abren el detalle de la venta */
+.sale-row { cursor: pointer; }
+.sale-row:hover { background: #faf7f7; }
 </style>
 @endpush
 @endsection

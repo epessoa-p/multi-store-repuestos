@@ -16,7 +16,7 @@ class WorkOrderService extends Model
 
     protected $casts = [
         'price'    => 'decimal:2',
-        'quantity' => 'decimal:2',
+        'quantity' => 'integer',
         'subtotal' => 'decimal:2',
     ];
 

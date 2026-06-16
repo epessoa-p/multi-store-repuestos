@@ -101,7 +101,7 @@
                                         <small class="text-muted">{{ $item->product->sku }}</small>
                                         @endif
                                     </td>
-                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 0) }}</td>
                                     <td class="py-3 text-end small">${{ number_format($item->unit_price, 2) }}</td>
                                     <td class="py-3 text-end fw-semibold small pe-4">
                                         ${{ number_format($item->quantity * $item->unit_price, 2) }}

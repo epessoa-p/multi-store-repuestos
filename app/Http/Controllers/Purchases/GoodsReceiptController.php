@@ -7,6 +7,8 @@ use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\Purchases\GoodsReceipt;
 use App\Models\Purchases\GoodsReceiptItem;
+use App\Models\Purchases\Purchase;
+use App\Models\Purchases\PurchaseItem;
 use App\Models\Purchases\PurchaseOrder;
 use App\Models\Purchases\PurchaseOrderItem;
 use App\Models\Warehouse;
@@ -71,10 +73,12 @@ class GoodsReceiptController extends Controller
         $validated = request()->validate([
             'warehouse_id'        => 'required|exists:warehouses,id',
             'receipt_date'        => 'required|date',
+            'invoice_number'      => 'nullable|string|max:100',
+            'tax'                 => 'nullable|numeric|min:0',
             'notes'               => 'nullable|string',
             'items'               => 'required|array|min:1',
             'items.*.po_item_id'  => 'required|exists:purchase_order_items,id',
-            'items.*.quantity'    => 'nullable|numeric|min:0',
+            'items.*.quantity'    => 'nullable|integer|min:0',
         ]);
 
         // Al menos un item con cantidad > 0
@@ -84,7 +88,7 @@ class GoodsReceiptController extends Controller
         }
 
         try {
-            $receipt = DB::transaction(function () use ($purchaseOrder, $validated) {
+            [$receipt, $purchase] = DB::transaction(function () use ($purchaseOrder, $validated) {
                 $receipt = GoodsReceipt::create([
                     'company_id'        => $purchaseOrder->company_id,
                     'purchase_order_id' => $purchaseOrder->id,
@@ -94,6 +98,8 @@ class GoodsReceiptController extends Controller
                     'notes'             => $validated['notes'] ?? null,
                     'received_by'       => auth()->id(),
                 ]);
+
+                $purchaseItems = [];
 
                 foreach ($validated['items'] as $row) {
                     $qty = (float) ($row['quantity'] ?? 0);
@@ -141,13 +147,61 @@ class GoodsReceiptController extends Controller
 
                     // 4. Actualizar cantidad recibida en el item de la OC
                     $poItem->increment('received_quantity', $qty);
+
+                    // Acumular para la compra (factura)
+                    $purchaseItems[] = [
+                        'product_id' => $poItem->product_id,
+                        'quantity'   => $qty,
+                        'unit_cost'  => (float) $poItem->unit_cost,
+                    ];
                 }
 
                 // 5. Refrescar estado de la OC
                 $purchaseOrder->refreshReceiptStatus();
 
-                return $receipt;
+                // 6. Registrar la COMPRA (factura) directamente con lo recibido → genera la cuenta por pagar
+                $purchase = null;
+                if (!empty($purchaseItems)) {
+                    $subtotal = collect($purchaseItems)->sum(fn ($i) => $i['quantity'] * $i['unit_cost']);
+                    $tax      = (float) ($validated['tax'] ?? 0);
+
+                    $purchase = Purchase::create([
+                        'company_id'        => $purchaseOrder->company_id,
+                        'supplier_id'       => $purchaseOrder->supplier_id,
+                        'purchase_order_id' => $purchaseOrder->id,
+                        'code'              => $this->nextPurchaseCode($purchaseOrder->company_id),
+                        'invoice_number'    => $validated['invoice_number'] ?? null,
+                        'purchase_date'     => $validated['receipt_date'],
+                        'subtotal'          => $subtotal,
+                        'tax'               => $tax,
+                        'total'             => $subtotal + $tax,
+                        'paid_amount'       => 0,
+                        'payment_status'    => 'pending',
+                        'notes'             => $validated['notes'] ?? null,
+                        'created_by'        => auth()->id(),
+                    ]);
+
+                    foreach ($purchaseItems as $pi) {
+                        PurchaseItem::create([
+                            'purchase_id' => $purchase->id,
+                            'product_id'  => $pi['product_id'],
+                            'quantity'    => $pi['quantity'],
+                            'unit_cost'   => $pi['unit_cost'],
+                            'subtotal'    => $pi['quantity'] * $pi['unit_cost'],
+                        ]);
+                    }
+
+                    // Enlazar la recepción con la compra generada
+                    $receipt->update(['purchase_id' => $purchase->id]);
+                }
+
+                return [$receipt, $purchase];
             });
+
+            if ($purchase) {
+                return redirect()->route('purchases.show', $purchase)
+                    ->with('success', 'Recepción y compra registradas. Se generó la cuenta por pagar (' . $purchase->code . ').');
+            }
 
             return redirect()->route('goods-receipts.show', $receipt)->with('success', 'Recepción registrada. Stock actualizado.');
         } catch (\Throwable $e) {
@@ -167,6 +221,12 @@ class GoodsReceiptController extends Controller
     {
         $count = GoodsReceipt::withTrashed()->where('company_id', $companyId)->count() + 1;
         return 'REC-' . str_pad((string) $count, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function nextPurchaseCode(int $companyId): string
+    {
+        $count = Purchase::withTrashed()->where('company_id', $companyId)->count() + 1;
+        return 'COM-' . str_pad((string) $count, 5, '0', STR_PAD_LEFT);
     }
 
     private function authorizeOrder(PurchaseOrder $order): void

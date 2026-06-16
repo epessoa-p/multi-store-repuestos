@@ -94,6 +94,60 @@
     </div>
     @endif
 
+    {{-- ── KPIs: valor de stock ───────────────────────────────────────── --}}
+    <div class="row g-2 mb-3" id="stockKpis">
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.66rem;letter-spacing:.04em;">
+                        <i class="bi bi-box-seam"></i>PRODUCTOS
+                    </div>
+                    <div class="fw-bold" style="font-size:1.05rem;" id="kpiProducts">{{ number_format($productCount) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.66rem;letter-spacing:.04em;">
+                        <i class="bi bi-stack"></i>UNIDADES
+                    </div>
+                    <div class="fw-bold" style="font-size:1.05rem;" id="kpiUnits">{{ number_format($totalUnits) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.66rem;letter-spacing:.04em;">
+                        <i class="bi bi-cash-stack"></i>VALOR A COSTO
+                    </div>
+                    <div class="fw-bold text-dark" style="font-size:1.05rem;">Bs. <span id="kpiCost">{{ number_format($valueCost, 2) }}</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.66rem;letter-spacing:.04em;">
+                        <i class="bi bi-tag"></i>VALOR A VENTA
+                    </div>
+                    <div class="fw-bold text-success" style="font-size:1.05rem;">Bs. <span id="kpiPrice">{{ number_format($valuePrice, 2) }}</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg">
+            <div class="card border-0 shadow-sm h-100" style="background:linear-gradient(135deg,#0a0a0a,#2a2a2a);">
+                <div class="card-body py-2 px-3 text-white">
+                    <div class="d-flex align-items-center gap-2" style="font-size:.66rem;letter-spacing:.04em;opacity:.8;">
+                        <i class="bi bi-graph-up-arrow"></i>GANANCIA POTENCIAL
+                    </div>
+                    <div class="fw-bold" style="font-size:1.05rem;">Bs. <span id="kpiProfit">{{ number_format($potentialProfit, 2) }}</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Warehouse mode indicator --}}
     @if(!$isAll)
     <div class="alert alert-info border-0 py-2 px-3 mb-3 d-flex align-items-center gap-2"
@@ -446,6 +500,27 @@
         }
     }
 
+    // ── Recalcular KPIs de valor de stock en vivo ────────────────────
+    function fmtMoney(n) {
+        return Number(n).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function recalcStockKpis() {
+        let products = 0, units = 0, cost = 0, price = 0;
+        document.querySelectorAll('#stockBody .stock-row').forEach(function (row) {
+            products++;
+            const qty = parseInt(row.querySelector('.qty-input')?.value, 10) || 0;
+            const c   = parseFloat(row.querySelector('.fld-input[data-field="cost"]')?.value) || 0;
+            const p   = parseFloat(row.querySelector('.fld-input[data-field="price"]')?.value) || 0;
+            units += qty; cost += qty * c; price += qty * p;
+        });
+        const set = function (id, val) { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('kpiProducts', products.toLocaleString('es'));
+        set('kpiUnits', units.toLocaleString('es'));
+        set('kpiCost', fmtMoney(cost));
+        set('kpiPrice', fmtMoney(price));
+        set('kpiProfit', fmtMoney(price - cost));
+    }
+
     // ── Get sibling field value (price or cost) from same row ─────────
     function getSiblingValue(id, field) {
         const sibling = document.querySelector('.fld-input[data-field="' + field + '"][data-id="' + id + '"]');
@@ -481,6 +556,7 @@
                     } else {
                         updateMargin(id, price, cost);
                     }
+                    recalcStockKpis();
                 })
                 .catch(function () {
                     flashInput(input, 'error');
@@ -496,7 +572,7 @@
         input.addEventListener('change', function () {
             if (!activeWhId) return; // safety: should be disabled already on "Todos"
             const id  = this.dataset.id;
-            const qty = parseFloat(this.value);
+            const qty = parseInt(this.value, 10);
             if (isNaN(qty) || qty < 0) { this.value = originalValue; return; }
 
             setStateIcon(id, 'spin');
@@ -516,6 +592,7 @@
                     if (row) row.dataset.stock = newStock;
                     flashInput(input, 'saved');
                     setStateIcon(id, 'ok');
+                    recalcStockKpis();
                 })
                 .catch(function () {
                     input.value = originalValue;

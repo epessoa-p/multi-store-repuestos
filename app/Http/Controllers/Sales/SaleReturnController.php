@@ -61,7 +61,7 @@ class SaleReturnController extends Controller
             'notes'                => 'nullable|string',
             'items'                => 'required|array|min:1',
             'items.*.sale_item_id' => 'required|exists:sale_items,id',
-            'items.*.quantity'     => 'nullable|numeric|min:0',
+            'items.*.quantity'     => 'nullable|integer|min:0',
         ]);
 
         // Debe haber al menos un item con cantidad > 0

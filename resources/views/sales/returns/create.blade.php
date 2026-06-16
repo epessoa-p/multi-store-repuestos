@@ -176,18 +176,18 @@
                                             <small class="text-muted">{{ $item->product->sku }}</small>
                                             @endif
                                         </td>
-                                        <td class="py-3 text-end small text-muted">{{ number_format($item->quantity, 2) }}</td>
+                                        <td class="py-3 text-end small text-muted">{{ number_format($item->quantity, 0) }}</td>
                                         <td class="py-3 text-end small {{ $alreadyReturned > 0 ? 'text-warning fw-semibold' : 'text-muted' }}">
                                             {{ number_format($alreadyReturned, 2) }}
                                         </td>
-                                        <td class="py-3 text-end small text-success fw-semibold">{{ number_format($returnable, 2) }}</td>
+                                        <td class="py-3 text-end small text-success fw-semibold">{{ number_format($returnable, 0) }}</td>
                                         <td class="py-3 text-end small">${{ number_format($item->unit_price, 2) }}</td>
                                         <td class="py-3 text-end pe-4">
                                             <input type="number"
                                                    name="items[{{ $i }}][quantity]"
                                                    class="form-control form-control-sm text-end return-qty"
                                                    style="width:110px;display:inline-block"
-                                                   step="0.01" min="0" max="{{ $returnable }}"
+                                                   step="1" min="0" inputmode="numeric" max="{{ $returnable }}"
                                                    value="{{ old("items.{$i}.quantity", 0) }}"
                                                    data-price="{{ $item->unit_price }}"
                                                    oninput="recalcReturn()">

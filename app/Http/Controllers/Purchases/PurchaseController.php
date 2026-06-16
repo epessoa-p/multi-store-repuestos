@@ -3,17 +3,21 @@
 namespace App\Http\Controllers\Purchases;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Sales\Concerns\ResolvesCashSession;
 use App\Models\Product;
 use App\Models\Purchases\GoodsReceipt;
 use App\Models\Purchases\Purchase;
 use App\Models\Purchases\PurchaseItem;
 use App\Models\Purchases\PurchaseOrder;
 use App\Models\Purchases\Supplier;
+use App\Models\Purchases\TreasuryAccount;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
 {
+    use ResolvesCashSession;
+
     public function index()
     {
         $user  = auth()->user();
@@ -79,7 +83,7 @@ class PurchaseController extends Controller
             'notes'              => 'nullable|string',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|numeric|min:0.01',
+            'items.*.quantity'   => 'required|integer|min:1',
             'items.*.unit_cost'  => 'required|numeric|min:0',
         ]);
 
@@ -135,7 +139,13 @@ class PurchaseController extends Controller
     {
         $this->authorizePurchase($purchase);
         $purchase->load(['supplier', 'purchaseOrder', 'createdBy', 'items.product', 'payments.treasuryAccount', 'payments.user']);
-        return view('purchases.invoices.show', ['purchase' => $purchase]);
+
+        // Para el modal de registro de pago (caja del personal / cuentas de tesorería)
+        $accounts = TreasuryAccount::where('company_id', $purchase->company_id)
+            ->where('active', true)->orderBy('name')->get();
+        $cashSession = $this->currentOpenSession();
+
+        return view('purchases.invoices.show', compact('purchase', 'accounts', 'cashSession'));
     }
 
     public function destroy(Purchase $purchase)

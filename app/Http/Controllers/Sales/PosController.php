@@ -64,7 +64,7 @@ class PosController extends Controller
             'interest'           => 'nullable|numeric|min:0',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|numeric|min:0.01',
+            'items.*.quantity'   => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             // Crédito rápido
             'installments'             => 'nullable|array',
@@ -89,7 +89,9 @@ class PosController extends Controller
                 'down_payment' => $validated['down_payment'] ?? 0,
             ], $session);
 
-            return redirect()->route('sales.show', $sale)->with('success', 'Venta registrada: ' . $sale->code);
+            return redirect()->route('sales.show', $sale)
+                ->with('success', 'Venta registrada: ' . $sale->code)
+                ->with('print_receipt', true);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withInput()->withErrors($e->errors());
         } catch (\Throwable $e) {

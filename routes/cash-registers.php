@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\CashRegisterController;
+use App\Http\Controllers\Cash\ExpenseController;
+use App\Http\Controllers\Cash\ExpenseServiceController;
 use App\Http\Controllers\CashRegister\CashSessionController;
 use App\Http\Controllers\CashRegister\MovementController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +12,22 @@ Route::middleware('auth')->group(function () {
     // ── Movimientos (tablero financiero por sucursal) ─────────────
     Route::get('cash/movimientos', [MovementController::class, 'index'])
         ->name('cash.movements')->middleware('check-permission:cash-registers.view');
+
+    // ── Gastos desde caja (modal navbar) ──────────────────────────
+    Route::get('cash/expense/data', [ExpenseController::class, 'data'])
+        ->name('cash.expense.data')->middleware('check-permission:cash.operate');
+    Route::post('cash/expense',     [ExpenseController::class, 'store'])
+        ->name('cash.expense.store')->middleware('check-permission:cash.operate');
+
+    // ── Catálogo: Servicios de gasto ──────────────────────────────
+    Route::prefix('admin/expense-services')->name('expense-services.')->group(function () {
+        Route::get('/',                      [ExpenseServiceController::class, 'index'])->name('index')->middleware('check-permission:expense-services.view');
+        Route::get('/create',                [ExpenseServiceController::class, 'create'])->name('create')->middleware('check-permission:expense-services.manage');
+        Route::post('/',                     [ExpenseServiceController::class, 'store'])->name('store')->middleware('check-permission:expense-services.manage');
+        Route::get('/{expenseService}/edit', [ExpenseServiceController::class, 'edit'])->name('edit')->middleware('check-permission:expense-services.manage');
+        Route::put('/{expenseService}',      [ExpenseServiceController::class, 'update'])->name('update')->middleware('check-permission:expense-services.manage');
+        Route::delete('/{expenseService}',   [ExpenseServiceController::class, 'destroy'])->name('destroy')->middleware('check-permission:expense-services.manage');
+    });
 
     // ── Admin: gestión de cajas ───────────────────────────────────
     // IMPORTANTE: /create debe ir ANTES de /{cashRegister} (wildcard)

@@ -555,7 +555,7 @@ function renderCart() {
             </td>
             <td class="text-center py-2">
                 <input type="number" class="form-control form-control-sm cart-qty-input"
-                       min="1"
+                       min="1" step="1" inputmode="numeric"
                        value="${it.qty}"
                        oninput="updateQty(${it.product.id}, this.value)">
             </td>
@@ -581,7 +581,7 @@ function renderCart() {
 
 function updateQty(pid, val) {
     if (!cart[pid]) return;
-    const qty = Math.max(1, parseFloat(val) || 1);
+    const qty = Math.max(1, Math.floor(parseInt(val, 10) || 1));
     cart[pid].qty = qty;
     renderCart();
 }

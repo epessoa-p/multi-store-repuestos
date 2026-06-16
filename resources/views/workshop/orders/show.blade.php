@@ -278,7 +278,7 @@
                             <div class="col-md-1">
                                 <label class="form-label form-label-sm fw-semibold">Cant.</label>
                                 <input type="number" name="quantity" class="form-control form-control-sm"
-                                       min="1" value="1">
+                                       min="1" step="1" inputmode="numeric" value="1">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label form-label-sm fw-semibold">Mecánico</label>
@@ -374,7 +374,7 @@
                             <div class="col-md-2">
                                 <label class="form-label form-label-sm fw-semibold">Cantidad</label>
                                 <input type="number" name="quantity" class="form-control form-control-sm"
-                                       min="1" value="1">
+                                       min="1" step="1" inputmode="numeric" value="1">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label form-label-sm fw-semibold">Precio unitario</label>

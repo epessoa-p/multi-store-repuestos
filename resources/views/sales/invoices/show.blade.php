@@ -56,6 +56,9 @@
                     <button onclick="window.print()" class="btn btn-light border btn-sm">
                         <i class="bi bi-printer me-1"></i>Imprimir
                     </button>
+                    <button type="button" onclick="printThermalReceipt()" class="btn btn-light border btn-sm">
+                        <i class="bi bi-receipt me-1"></i>Recibo térmico
+                    </button>
                     @if($sale->status === 'completed' && !$fullyReturned && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sale-returns.create', auth()->user()->getCurrentCompany())))
                     <a href="{{ route('sale-returns.create', $sale) }}" class="btn btn-light border btn-sm">
                         <i class="bi bi-arrow-return-left me-1"></i>Devolver
@@ -118,7 +121,7 @@
                                         <small class="text-muted">{{ $item->product->sku }}</small>
                                         @endif
                                     </td>
-                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="py-3 text-end small">{{ number_format($item->quantity, 0) }}</td>
                                     <td class="py-3 text-end small">${{ number_format($item->unit_price, 2) }}</td>
                                     <td class="py-3 text-end small text-muted">
                                         @if($item->discount > 0) ${{ number_format($item->discount, 2) }} @else — @endif
@@ -392,6 +395,51 @@
     .no-print-shadow { box-shadow: none !important; }
 }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+    const RECEIPT_URL = @json(route('sales.receipt', $sale));
+
+    // Botón "Recibo térmico": abre el recibo 80mm en ventana emergente (auto-imprime).
+    // La ventana se abre ancha para que el diálogo de impresión muestre la vista previa
+    // (con una ventana angosta Chrome solo muestra el panel de configuración).
+    function printThermalReceipt() {
+        const W = 980, H = 720;
+        const left = Math.max(0, (window.screen.width  - W) / 2);
+        const top  = Math.max(0, (window.screen.height - H) / 2);
+        const w = window.open(RECEIPT_URL, 'recibo_termico',
+            `width=${W},height=${H},left=${left},top=${top}`);
+        if (!w) {
+            // Pop-up bloqueado: caer a impresión vía iframe oculto.
+            printReceiptInIframe();
+        }
+    }
+
+    // Impresión silenciosa mediante iframe oculto (no requiere pop-ups).
+    function printReceiptInIframe() {
+        let frame = document.getElementById('thermalReceiptFrame');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.id = 'thermalReceiptFrame';
+            frame.style.position = 'fixed';
+            frame.style.right = '0';
+            frame.style.bottom = '0';
+            frame.style.width = '0';
+            frame.style.height = '0';
+            frame.style.border = '0';
+            document.body.appendChild(frame);
+        }
+        frame.src = RECEIPT_URL; // la propia vista llama a window.print() al cargar
+    }
+
+    @if(session('print_receipt'))
+    // Auto-impresión tras registrar la venta en el POS.
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(printReceiptInIframe, 400);
+    });
+    @endif
+</script>
 @endpush
 
 @endsection

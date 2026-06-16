@@ -13,12 +13,14 @@ class ClientDocument extends Model
     const TYPES = [
         'ci_front' => 'CI Anverso',
         'ci_back'  => 'CI Reverso',
+        'invoice'  => 'Factura',
         'other'    => 'Otro documento',
     ];
 
     const TYPE_ICONS = [
         'ci_front' => 'bi-card-heading',
         'ci_back'  => 'bi-card-text',
+        'invoice'  => 'bi-receipt',
         'other'    => 'bi-file-earmark',
     ];
 

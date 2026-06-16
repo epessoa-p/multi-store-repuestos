@@ -18,22 +18,9 @@
 </div>
 
 <div class="mt-3">
-    <label class="form-label fw-semibold small" for="photos_{{ $prefix }}"><i class="bi bi-camera me-1"></i>Fotos (opcional)</label>
-    <input type="file" id="photos_{{ $prefix }}" name="photos[]" class="form-control" accept="image/*" multiple onchange="previewPhotos_{{ $prefix }}(this)">
-    <div class="d-flex flex-wrap gap-2 mt-2" id="preview_{{ $prefix }}"></div>
+    <label class="form-label fw-semibold small"><i class="bi bi-camera me-1"></i>Fotos (opcional)</label>
+    <x-media-upload name="photos[]" :multiple="true" :bare="true"
+        accent="#e10600" :max-mb="5" :max-files="12"
+        drop-text="Arrastra fotos aquí"
+        hint="JPG, PNG, WebP · máx. 5MB" />
 </div>
-
-@push('scripts')
-<script>
-function previewPhotos_{{ $prefix }}(input) {
-    const box = document.getElementById('preview_{{ $prefix }}');
-    box.innerHTML = '';
-    Array.from(input.files).slice(0, 12).forEach(file => {
-        const img = document.createElement('img');
-        img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;';
-        img.src = URL.createObjectURL(file);
-        box.appendChild(img);
-    });
-}
-</script>
-@endpush

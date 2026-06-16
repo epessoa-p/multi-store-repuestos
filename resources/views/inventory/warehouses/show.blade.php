@@ -163,9 +163,9 @@
 
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold small" for="quantity">Cantidad <span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" min="0.01" id="quantity" name="quantity"
+                                <input type="number" step="1" min="1" inputmode="numeric" id="quantity" name="quantity"
                                        class="form-control form-control-sm @error('quantity') is-invalid @enderror"
-                                       value="{{ old('quantity') }}" required placeholder="0.00">
+                                       value="{{ old('quantity') }}" required placeholder="0">
                                 @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
@@ -267,7 +267,7 @@
                                             {{ $typeInfo['label'] }}
                                         </span>
                                     </td>
-                                    <td class="py-3 text-end fw-semibold small">{{ number_format($movement->quantity, 2) }}</td>
+                                    <td class="py-3 text-end fw-semibold small">{{ number_format($movement->quantity, 0) }}</td>
                                     <td class="py-3 text-end small text-muted">${{ number_format($movement->unit_cost ?? 0, 2) }}</td>
                                     <td class="py-3 small text-muted pe-4">{{ $movement->user?->name ?: '—' }}</td>
                                 </tr>
