@@ -106,10 +106,10 @@
                         <table class="table align-middle mb-0" id="itemsTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-4 py-3 small fw-semibold text-muted" style="min-width:220px">Producto</th>
-                                    <th class="py-3 small fw-semibold text-muted" style="width:110px">Cantidad</th>
-                                    <th class="py-3 small fw-semibold text-muted" style="width:130px">Costo unit.</th>
-                                    <th class="py-3 small fw-semibold text-muted text-end" style="width:120px">Subtotal</th>
+                                    <th class="ps-4 py-3 small fw-semibold text-muted">Producto</th>
+                                    <th class="py-3 small fw-semibold text-muted form-control-sm" style="width:90px">Cant.</th>
+                                    <th class="py-3 small fw-semibold text-muted" style="width:120px">Costo <br> unit.</th>
+                                    <th class="py-3 small fw-semibold text-muted text-end" style="width:110px">Subtotal</th>
                                     <th class="py-3 pe-3" style="width:44px"></th>
                                 </tr>
                             </thead>
@@ -195,6 +195,16 @@
 @push('styles')
 <style>
 .item-row td { padding-top: .6rem; padding-bottom: .6rem; }
+
+/* Layout fijo: el producto ocupa el espacio restante y no empuja al costo/subtotal */
+#itemsTable { table-layout: fixed; width: 100%; }
+#itemsTable td, #itemsTable th { overflow: hidden; }
+/* El select de producto se adapta a la celda y trunca el nombre largo con "…" */
+#itemsTable .product-select + .select2-container { max-width: 100%; }
+#itemsTable .select2-selection__rendered {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-right: 18px;
+}
 </style>
 @endpush
 

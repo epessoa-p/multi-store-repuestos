@@ -219,6 +219,11 @@
 @push('styles')
 <style>
 .item-row td { padding-top:.55rem; padding-bottom:.55rem; }
+/* El producto ocupa un ancho fijo y trunca nombres largos; las demás columnas quedan visibles */
+#itemsTable { table-layout: fixed; width: 100%; }
+#itemsTable td, #itemsTable th { overflow: hidden; }
+#itemsTable th:first-child, #itemsTable td:first-child { width: 36%; }
+#itemsTable .select2-selection__rendered { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 18px; }
 </style>
 @endpush
 
