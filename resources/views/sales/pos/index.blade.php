@@ -22,7 +22,7 @@
 {{-- ─── FULL POS LAYOUT ─────────────────────────────────────────────── --}}
 
 @php
-    $productsData = $products->map(function($p) {
+    $productsData = $products->map(function($p) use ($warehouseId, $activeStock) {
         $photos = [];
         foreach ($p->photos as $ph) {
             $photos[] = $ph->url;
@@ -31,8 +31,10 @@
             'id'               => $p->id,
             'name'             => $p->name,
             'sku'              => $p->sku,
+            'code'             => $p->code,
             'price'            => (float) $p->price,
-            'stock'            => (float) $p->current_stock,
+            'cost'             => (float) $p->cost,
+            'stock'            => $warehouseId ? (float) ($activeStock[$p->id] ?? 0) : (float) $p->current_stock,
             'category'         => $p->category?->name ?? '',
             'category_id'      => $p->category_id,
             'brand'            => $p->brand?->name ?? '',
@@ -51,6 +53,9 @@
             'id_number' => $c->id_number ?? '',
         ];
     })->values();
+
+    // Datos para el modal "stock en otros almacenes"
+    $warehousesJson = $warehouses->map(fn($w) => ['id' => $w->id, 'name' => $w->name])->values();
 @endphp
 
 <div class="pos-wrapper">
@@ -69,7 +74,10 @@
             </span>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('sales.index') }}" class="btn btn-light border btn-sm">
+            <button type="button" class="btn btn-info text-white btn-sm" data-bs-toggle="modal" data-bs-target="#stockModal">
+                <i class="bi bi-boxes me-1"></i>Stock por almacén
+            </button>
+            <a href="{{ route('sales.index') }}" class="btn btn-dark btn-sm">
                 <i class="bi bi-list-ul me-1"></i>Ventas
             </a>
         </div>
@@ -96,7 +104,7 @@
                         <i class="bi bi-search text-muted"></i>
                     </span>
                     <input type="text" id="productSearch" class="form-control border-start-0 ps-0"
-                           placeholder="Buscar producto por nombre, SKU o categoría..."
+                           placeholder="Buscar producto por nombre, código o categoría..."
                            autocomplete="off">
                     <button type="button" class="btn btn-light border" id="clearSearch" style="display:none;" onclick="clearSearch()">
                         <i class="bi bi-x-lg"></i>
@@ -110,6 +118,16 @@
                     <button type="button" class="cat-pill active" data-cat="">Todas</button>
                     @foreach($categories as $cat)
                     <button type="button" class="cat-pill" data-cat="{{ $cat->id }}">{{ $cat->name }}</button>
+                    @endforeach
+                </div>
+            </div>
+            {{-- Category filter bar por CÓDIGO (mismo filtro, muestra el code) --}}
+            <div class="d-flex align-items-center gap-2 mb-2 flex-nowrap">
+                <span class="text-muted flex-shrink-0" style="font-size:.7rem;"><i class="bi bi-upc me-1"></i>Código</span>
+                <div class="cat-filter-bar flex-grow-1" id="catCodeBar" style="min-width:0;">
+                    <button type="button" class="cat-pill active" data-cat="">Todas</button>
+                    @foreach($categories as $cat)
+                    <button type="button" class="cat-pill" data-cat="{{ $cat->id }}">{{ $cat->code ?: '—' }}</button>
                     @endforeach
                 </div>
             </div>
@@ -193,14 +211,18 @@
                                 <span id="cartSubtotal">$0.00</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                                <label class="text-muted small mb-0" for="discount">Descuento</label>
-                                <div class="input-group input-group-sm" style="width:110px;">
-                                    <span class="input-group-text bg-light px-2">$</span>
-                                    <input type="number" id="discount" name="discount"
-                                           class="form-control text-end" min="0" step="0.01"
-                                           value="0" placeholder="0.00"
+                                <label class="text-muted small mb-0" for="discountPct">Descuento <span class="text-muted" style="font-size:.72rem;">(% s/ ganancia)</span></label>
+                                <div class="input-group input-group-sm" style="width:92px;">
+                                    <input type="number" id="discountPct" name="discount_pct"
+                                           class="form-control text-end" min="0" max="100" step="1" inputmode="numeric"
+                                           value="0" placeholder="0"
                                            oninput="recalcCart()">
+                                    <span class="input-group-text bg-light px-2">%</span>
                                 </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small mb-1" id="discountAmountRow" style="display:none;">
+                                <span class="text-muted">Descuento aplicado</span>
+                                <span class="text-danger" id="cartDiscount">-$0.00</span>
                             </div>
                             <div class="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
                                 <span>TOTAL</span>
@@ -214,8 +236,7 @@
                                 <i class="bi bi-cash me-2"></i>Cobrar (Contado)
                             </button>
                             <button type="button" class="btn btn-light border w-100 py-2"
-                                    id="btnCredit"
-                                    data-bs-toggle="modal" data-bs-target="#creditModal">
+                                    id="btnCredit" onclick="openCreditModal()">
                                 <i class="bi bi-calendar2-check me-2"></i>A Crédito
                             </button>
                         </div>
@@ -361,38 +382,12 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-bottom">
                 <h5 class="modal-title fw-semibold">
-                    <i class="bi bi-box-seam me-2 text-muted"></i>Detalle del producto
+                    <i class="bi bi-image me-2 text-muted"></i>Imágenes del producto
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="row g-4">
-                    <div class="col-md-5">
-                        <div id="pmGallery"></div>
-                    </div>
-                    <div class="col-md-7">
-                        <h5 class="fw-bold mb-1" id="pmName"></h5>
-                        <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-                            <span class="text-muted small" id="pmSku"></span>
-                            <span id="pmStock" class="badge"></span>
-                        </div>
-                        <div class="fs-4 fw-bold mb-3" id="pmPrice"></div>
-                        <dl class="row g-1 small mb-3">
-                            <dt class="col-5 text-muted fw-normal">Categoría</dt>
-                            <dd class="col-7 mb-0" id="pmCategory"></dd>
-                            <dt class="col-5 text-muted fw-normal">Marca</dt>
-                            <dd class="col-7 mb-0" id="pmBrand"></dd>
-                        </dl>
-                        <div class="mb-2" id="pmModelsRow">
-                            <div class="text-muted small fw-semibold mb-1">Modelos compatibles</div>
-                            <div class="small" id="pmModels"></div>
-                        </div>
-                        <div class="mb-0" id="pmDescRow">
-                            <div class="text-muted small fw-semibold mb-1">Descripción</div>
-                            <div class="small text-muted" id="pmDesc"></div>
-                        </div>
-                    </div>
-                </div>
+                <div id="pmGallery"></div>
             </div>
             <div class="modal-footer border-top">
                 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
@@ -400,6 +395,56 @@
                    data-base-url="{{ route('products.show', '__ID__') }}">
                     <i class="bi bi-eye me-1"></i>Ver ficha completa
                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ─── STOCK POR ALMACÉN (revisión) ──────────────────────────────── --}}
+<div class="modal fade" id="stockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-semibold"><i class="bi bi-boxes me-2 text-muted"></i>Stock por almacén</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="stockSearch" class="form-control border-start-0 ps-0" placeholder="Buscar producto por nombre o código..." autocomplete="off">
+                </div>
+                {{-- Filtro categoría (multiselección) --}}
+                <div class="d-flex align-items-center gap-2 mb-2 flex-nowrap">
+                    <span class="text-muted flex-shrink-0" style="font-size:.7rem;"><i class="bi bi-tags me-1"></i>Categoría</span>
+                    <div class="cat-filter-bar flex-grow-1" id="stockCatBar" style="min-width:0;">
+                        <button type="button" class="cat-pill active" data-cat="">Todas</button>
+                        @foreach($categories as $cat)
+                        <button type="button" class="cat-pill" data-cat="{{ $cat->id }}">{{ $cat->name }}</button>
+                        @endforeach
+                    </div>
+                </div>
+                {{-- Filtro modelo (multiselección) --}}
+                @if($motoModels->count())
+                <div class="d-flex align-items-center gap-2 mb-3 flex-nowrap">
+                    <span class="text-muted flex-shrink-0" style="font-size:.7rem;"><i class="bi bi-bicycle me-1"></i>Modelo</span>
+                    <div class="cat-filter-bar flex-grow-1" id="stockModelBar" style="min-width:0;">
+                        <button type="button" class="cat-pill model-pill active" data-model="">Todos</button>
+                        @foreach($motoModels as $m)
+                        <button type="button" class="cat-pill model-pill" data-model="{{ $m->id }}">{{ $m->display_name }}</button>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size:.8rem;">
+                        <thead class="table-light"><tr id="stockHead"></tr></thead>
+                        <tbody id="stockBody"></tbody>
+                    </table>
+                </div>
+                <div class="text-muted mt-2" style="font-size:.72rem;"><i class="bi bi-info-circle me-1"></i>Solo lectura — stock calculado por almacén.</div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -481,16 +526,19 @@
 .product-info-btn:hover { background: #fff; border-color: #0a0a0a; color: #0a0a0a; }
 
 /* Product detail modal gallery */
+#productModal .modal-content { max-height: 90vh; }
+#productModal .modal-body { overflow-y: auto; }
 .pm-gallery-main {
     width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
+    height: auto;
+    max-height: 64vh;
+    object-fit: contain;
     border-radius: 10px;
     background: #f5f5f5;
 }
 .pm-gallery-placeholder {
     width: 100%;
-    aspect-ratio: 1;
+    height: 40vh;
     border-radius: 10px;
     background: #f0f0f0;
     display: flex;
@@ -510,6 +558,22 @@
 }
 .pm-thumb.active, .pm-thumb:hover { border-color: #0a0a0a; }
 
+/* Flechas de navegación de la galería */
+.pm-stage { position: relative; display: flex; align-items: center; justify-content: center; }
+.pm-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 40px; height: 40px; border-radius: 50%; border: 0;
+    background: rgba(0,0,0,.45); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; cursor: pointer; transition: background .15s; z-index: 2;
+}
+.pm-nav:hover { background: rgba(0,0,0,.72); }
+.pm-nav-prev { left: 8px; }
+.pm-nav-next { right: 8px; }
+.pm-counter {
+    position: absolute; bottom: 8px; right: 10px;
+    background: rgba(0,0,0,.55); color: #fff; font-size: .72rem; padding: 2px 9px; border-radius: 999px;
+}
+
 @media print {
     .app-sidebar, .app-topbar, #posForm .card-header, .pos-wrapper > .d-flex:first-child { display: none !important; }
 }
@@ -520,10 +584,76 @@
 <script>
 const PRODUCTS = @json($productsData);
 const CLIENTS  = @json($clientsJson);
+const WAREHOUSES = @json($warehousesJson);
+const WH_STOCK   = @json($productWhStock);   // { product_id: [ {wid, qty} ] }
 let cart = {};
 let installmentCount = 0;
 const selectedCats   = new Set();
 const selectedModels = new Set();
+const stockCats      = new Set();
+const stockModels    = new Set();
+
+// ── Notificación emergente (toast) ──────────────────────────────────
+function showToast(msg, type) {
+    type = type || 'info';
+    let cont = document.getElementById('posToastContainer');
+    if (!cont) {
+        cont = document.createElement('div');
+        cont.id = 'posToastContainer';
+        cont.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:1090;display:flex;flex-direction:column;gap:.5rem;';
+        document.body.appendChild(cont);
+    }
+    const colors = { warning: '#f59e0b', danger: '#e11d48', success: '#16a34a', info: '#0a0a0a' };
+    const icons  = { warning: 'bi-exclamation-triangle', danger: 'bi-x-octagon', success: 'bi-check-circle', info: 'bi-info-circle' };
+    const el = document.createElement('div');
+    el.style.cssText = 'background:#fff;border-left:4px solid ' + (colors[type] || colors.info) + ';box-shadow:0 6px 22px rgba(0,0,0,.16);border-radius:8px;padding:.7rem .9rem;font-size:.85rem;max-width:340px;display:flex;align-items:flex-start;gap:.5rem;';
+    el.innerHTML = '<i class="bi ' + (icons[type] || icons.info) + '" style="color:' + (colors[type] || colors.info) + ';margin-top:1px;"></i><span>' + msg + '</span>';
+    cont.appendChild(el);
+    setTimeout(function () { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3800);
+}
+
+// ── Abrir modal de crédito validando cliente real ───────────────────
+function openCreditModal() {
+    if (Object.keys(cart).length === 0) { showToast('Agrega al menos un producto al carrito.', 'warning'); return; }
+    if (!document.getElementById('client_id').value) {
+        showToast('Para vender a crédito debes seleccionar un cliente registrado (no «Cliente general»).', 'warning');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('clientModal')).show();
+        return;
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('creditModal')).show();
+}
+
+// ── Stock por almacén (modal de revisión) ───────────────────────────
+function renderStockTable(filter) {
+    const head = document.getElementById('stockHead');
+    const body = document.getElementById('stockBody');
+    const q = (filter || '').toLowerCase().trim();
+
+    head.innerHTML = '<th class="ps-2">Producto</th>' + WAREHOUSES.map(w => `<th class="text-end">${w.name}</th>`).join('');
+
+    const rows = PRODUCTS.filter(p => {
+        if (!WH_STOCK[p.id]) return false; // sin stock en ningún almacén
+        if (q && !(p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)) || p.sku.toLowerCase().includes(q))) return false;
+        if (stockCats.size && !stockCats.has(String(p.category_id))) return false;
+        if (stockModels.size && !(p.model_ids || []).some(id => stockModels.has(String(id)))) return false;
+        return true;
+    });
+
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="' + (WAREHOUSES.length + 1) + '" class="text-center text-muted py-4">Sin stock en almacenes' + (q ? ' para esa búsqueda' : '') + '.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = rows.map(p => {
+        const map = {};
+        (WH_STOCK[p.id] || []).forEach(s => { map[s.wid] = s.qty; });
+        const cells = WAREHOUSES.map(w => {
+            const qv = map[w.id] || 0;
+            return `<td class="text-end ${qv > 0 ? 'fw-semibold' : 'text-muted'}">${qv > 0 ? qv : '—'}</td>`;
+        }).join('');
+        return `<tr><td class="ps-2"><div class="fw-semibold lh-sm">${p.name}</div><div class="text-muted" style="font-size:.7rem;">${p.code ? p.code : 'Sin código'}</div></td>${cells}</tr>`;
+    }).join('');
+}
 
 // ── CLIENT SEARCH MODAL ─────────────────────────────────────────────
 function renderClientList(filter) {
@@ -612,34 +742,27 @@ function openProductModal(pid) {
     const modal = document.getElementById('productModal');
 
     // Gallery
+    pmPhotos = p.photos || [];
+    pmIndex  = 0;
     let galleryHtml = '';
-    if (p.photos && p.photos.length > 0) {
+    if (pmPhotos.length > 0) {
+        const arrows = pmPhotos.length > 1 ? `
+            <button type="button" class="pm-nav pm-nav-prev" onclick="pmNav(-1)" title="Anterior"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" class="pm-nav pm-nav-next" onclick="pmNav(1)" title="Siguiente"><i class="bi bi-chevron-right"></i></button>
+            <span class="pm-counter"><span id="pmCounter">1</span>/${pmPhotos.length}</span>` : '';
         galleryHtml = `
-            <img id="pmMainImg" src="${p.photos[0]}" class="pm-gallery-main mb-2" alt="${p.name}">
-            ${p.photos.length > 1 ? `<div class="d-flex gap-2 flex-wrap">
-                ${p.photos.map((ph, i) => `<img src="${ph}" class="pm-thumb ${i===0?'active':''}" onclick="pmSwap(this, '${ph}')" alt="">`).join('')}
+            <div class="pm-stage">
+                <img id="pmMainImg" src="${pmPhotos[0]}" class="pm-gallery-main" alt="">
+                ${arrows}
+            </div>
+            ${pmPhotos.length > 1 ? `<div class="d-flex gap-2 flex-wrap mt-2 justify-content-center">
+                ${pmPhotos.map((ph, i) => `<img src="${ph}" class="pm-thumb ${i===0?'active':''}" onclick="pmGo(${i})" alt="">`).join('')}
             </div>` : ''}`;
     } else {
         galleryHtml = `<div class="pm-gallery-placeholder"><i class="bi bi-box-seam"></i></div>`;
     }
 
     modal.querySelector('#pmGallery').innerHTML = galleryHtml;
-    modal.querySelector('#pmName').textContent  = p.name;
-    modal.querySelector('#pmSku').textContent   = p.sku;
-    modal.querySelector('#pmPrice').textContent = '$' + p.price.toFixed(2);
-    modal.querySelector('#pmStock').textContent = p.stock > 0 ? p.stock + ' en stock' : 'Sin stock';
-    modal.querySelector('#pmStock').className   = 'badge ' + (p.stock > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle');
-    modal.querySelector('#pmCategory').textContent = p.category || '—';
-    modal.querySelector('#pmBrand').textContent    = p.brand || '—';
-    modal.querySelector('#pmDesc').textContent     = p.description || '—';
-
-    const modelsRow = modal.querySelector('#pmModelsRow');
-    if (p.compatible_models) {
-        modelsRow.style.display = '';
-        modal.querySelector('#pmModels').textContent = p.compatible_models;
-    } else {
-        modelsRow.style.display = 'none';
-    }
 
     const fichaBtn = modal.querySelector('#pmFichaBtn');
     fichaBtn.href = fichaBtn.dataset.baseUrl.replace('__ID__', p.id);
@@ -647,11 +770,18 @@ function openProductModal(pid) {
     bootstrap.Modal.getOrCreateInstance(modal).show();
 }
 
-function pmSwap(thumb, src) {
-    document.getElementById('pmMainImg').src = src;
-    document.querySelectorAll('.pm-thumb').forEach(t => t.classList.remove('active'));
-    thumb.classList.add('active');
+let pmPhotos = [];
+let pmIndex  = 0;
+function pmGo(i) {
+    if (!pmPhotos.length) return;
+    pmIndex = (i + pmPhotos.length) % pmPhotos.length;
+    const img = document.getElementById('pmMainImg');
+    if (img) img.src = pmPhotos[pmIndex];
+    document.querySelectorAll('#productModal .pm-thumb').forEach((t, idx) => t.classList.toggle('active', idx === pmIndex));
+    const c = document.getElementById('pmCounter');
+    if (c) c.textContent = pmIndex + 1;
 }
+function pmNav(dir) { pmGo(pmIndex + dir); }
 
 // ── RENDER PRODUCT GRID ─────────────────────────────────────────────
 function renderGrid(filter) {
@@ -662,6 +792,7 @@ function renderGrid(filter) {
     let list = q
         ? PRODUCTS.filter(p =>
             p.name.toLowerCase().includes(q) ||
+            (p.code && p.code.toLowerCase().includes(q)) ||
             p.sku.toLowerCase().includes(q) ||
             p.category.toLowerCase().includes(q))
         : PRODUCTS.slice();
@@ -691,6 +822,9 @@ function renderGrid(filter) {
             : `<div class="product-thumb-placeholder mb-2"><i class="bi bi-box-seam"></i></div>`;
         const meta = [p.brand, p.compatible_models].filter(Boolean).join(' · ') || '—';
         const metaEsc = meta.replace(/"/g, '&quot;');
+        const codeHtml = p.code
+            ? `<span class="badge bg-light text-dark border" style="font-size:.6rem;"><i class="bi bi-upc me-1"></i>${p.code}</span>`
+            : `<span class="text-muted fst-italic" style="font-size:.62rem;">Sin código</span>`;
         return `
         <div class="col-6 col-md-4 col-xl-3">
             <div class="product-card ${disabled} ${inCart}" onclick="addToCart(${p.id})" data-pid="${p.id}">
@@ -699,6 +833,7 @@ function renderGrid(filter) {
                 </button>
                 ${img}
                 <div class="fw-semibold lh-sm mb-1" style="font-size:.78rem;">${p.name}</div>
+                <div class="mb-1">${codeHtml}</div>
                 <div class="text-muted mb-1 text-truncate" style="font-size:.66rem;" title="${metaEsc}">${meta}</div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <span class="fw-bold" style="font-size:.85rem;">$${p.price.toFixed(2)}</span>
@@ -760,7 +895,7 @@ function renderCart() {
         <tr>
             <td class="ps-3 py-2">
                 <div class="fw-semibold lh-sm" style="font-size:.78rem;">${it.product.name}</div>
-                <div class="text-muted" style="font-size:.68rem;">${it.product.sku}</div>
+                <div class="text-muted" style="font-size:.68rem;">${it.product.code ? it.product.code : 'Sin código'}</div>
             </td>
             <td class="text-center py-2">
                 <input type="number" class="form-control form-control-sm cart-qty-input"
@@ -796,13 +931,25 @@ function updateQty(pid, val) {
 }
 
 function recalcCart() {
-    const items = Object.values(cart);
-    const sub   = items.reduce((s, it) => s + it.qty * it.product.price, 0);
-    const disc  = parseFloat(document.getElementById('discount').value) || 0;
+    const items  = Object.values(cart);
+    const sub    = items.reduce((s, it) => s + it.qty * it.product.price, 0);
+    const profit = items.reduce((s, it) => s + it.qty * (it.product.price - (it.product.cost || 0)), 0);
+    let pct = parseInt(document.getElementById('discountPct').value, 10) || 0;
+    pct = Math.min(100, Math.max(0, pct));
+    // El descuento solo afecta a la ganancia (precio − costo)
+    const disc  = Math.max(0, Math.round(Math.max(0, profit) * pct / 100 * 100) / 100);
     const total = Math.max(0, sub - disc);
+
     document.getElementById('cartSubtotal').textContent = '$' + sub.toFixed(2);
-    document.getElementById('cartTotal').textContent    = '$' + total.toFixed(2);
-    return { sub, disc, total };
+    const dRow = document.getElementById('discountAmountRow');
+    if (disc > 0) {
+        dRow.style.display = '';
+        document.getElementById('cartDiscount').textContent = '-$' + disc.toFixed(2);
+    } else {
+        dRow.style.display = 'none';
+    }
+    document.getElementById('cartTotal').textContent = '$' + total.toFixed(2);
+    return { sub, disc, total, pct, profit };
 }
 
 // ── SUBMIT ──────────────────────────────────────────────────────────
@@ -824,7 +971,11 @@ function submitCash() {
 }
 
 function submitCredit() {
-    if (Object.keys(cart).length === 0) { alert('Agrega al menos un producto.'); return; }
+    if (Object.keys(cart).length === 0) { showToast('Agrega al menos un producto.', 'warning'); return; }
+    if (!document.getElementById('client_id').value) {
+        showToast('Para vender a crédito debes seleccionar un cliente registrado.', 'warning');
+        return;
+    }
     const rows = document.querySelectorAll('#installmentsBody tr');
     if (rows.length === 0) { alert('Genera al menos una cuota antes de confirmar.'); return; }
     document.getElementById('saleTypeInput').value = 'credit';
@@ -963,34 +1114,43 @@ function clearSearch() {
 document.addEventListener('DOMContentLoaded', function () {
     renderGrid('');
 
-    // Barras de filtro multiselección (categorías y modelos)
-    function setupMultiBar(barId, dataKey, set) {
-        const bar = document.getElementById(barId);
-        if (!bar) return;
-        const allBtn = bar.querySelector('.cat-pill[data-' + dataKey + '=""]') || bar.querySelector('.cat-pill');
-        bar.querySelectorAll('.cat-pill').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const val = this.dataset[dataKey] || '';
-                if (val === '') {
-                    set.clear();
-                    bar.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                } else {
-                    this.classList.toggle('active');
-                    if (this.classList.contains('active')) {
-                        set.add(val);
-                        if (allBtn) allBtn.classList.remove('active');
-                    } else {
-                        set.delete(val);
-                        if (set.size === 0 && allBtn) allBtn.classList.add('active');
-                    }
-                }
-                renderGrid(document.getElementById('productSearch').value);
+    // Barras de filtro multiselección. Acepta varias barras DOM para el mismo Set
+    // (p. ej. categoría por nombre y por código), manteniéndolas sincronizadas.
+    function setupMultiBar(barIds, dataKey, set, onChange) {
+        const bars = (Array.isArray(barIds) ? barIds : [barIds])
+            .map(id => document.getElementById(id)).filter(Boolean);
+        if (!bars.length) return;
+        const cb = onChange || function () { renderGrid(document.getElementById('productSearch').value); };
+
+        function syncActive() {
+            bars.forEach(function (bar) {
+                bar.querySelectorAll('.cat-pill').forEach(function (btn) {
+                    const val = btn.dataset[dataKey] || '';
+                    btn.classList.toggle('active', val === '' ? set.size === 0 : set.has(val));
+                });
+            });
+        }
+        bars.forEach(function (bar) {
+            bar.querySelectorAll('.cat-pill').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const val = this.dataset[dataKey] || '';
+                    if (val === '') { set.clear(); }
+                    else if (set.has(val)) { set.delete(val); }
+                    else { set.add(val); }
+                    syncActive();
+                    cb();
+                });
             });
         });
+        syncActive();
     }
-    setupMultiBar('catBar', 'cat', selectedCats);
+    // Categoría: dos barras (nombre + código) sincronizadas sobre el mismo filtro
+    setupMultiBar(['catBar', 'catCodeBar'], 'cat', selectedCats);
     setupMultiBar('modelBar', 'model', selectedModels);
+    // Barras de filtro del modal de stock
+    const stockOnChange = function () { renderStockTable(document.getElementById('stockSearch').value); };
+    setupMultiBar('stockCatBar', 'cat', stockCats, stockOnChange);
+    setupMultiBar('stockModelBar', 'model', stockModels, stockOnChange);
 
     const searchInput = document.getElementById('productSearch');
     searchInput.addEventListener('input', function () {
@@ -998,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', function () {
         renderGrid(this.value);
     });
 
-    document.getElementById('discount').addEventListener('input', updateBalanceIndicator);
+    document.getElementById('discountPct').addEventListener('input', updateBalanceIndicator);
 
     document.getElementById('creditModal').addEventListener('show.bs.modal', function () {
         updateBalanceIndicator();
@@ -1014,6 +1174,33 @@ document.addEventListener('DOMContentLoaded', function () {
         renderClientList('');
         clientSearch.focus();
     });
+
+    // Navegación de la galería con flechas del teclado
+    document.addEventListener('keydown', function (e) {
+        const pm = document.getElementById('productModal');
+        if (!pm.classList.contains('show') || pmPhotos.length < 2) return;
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); pmNav(-1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); pmNav(1); }
+    });
+
+    // ── Modal de stock por almacén ──────────────────────────────────
+    const stockModal  = document.getElementById('stockModal');
+    const stockSearch = document.getElementById('stockSearch');
+    stockModal.addEventListener('show.bs.modal', function () {
+        stockSearch.value = '';
+        renderStockTable('');
+    });
+    stockSearch.addEventListener('input', function () { renderStockTable(this.value); });
+
+    @if(session('print_receipt_id'))
+    // Imprimir el recibo térmico de la venta recién registrada (sin salir del POS)
+    (function () {
+        const f = document.createElement('iframe');
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        f.src = '{{ route('sales.receipt', session('print_receipt_id')) }}';
+        document.body.appendChild(f);
+    })();
+    @endif
 });
 </script>
 @endpush

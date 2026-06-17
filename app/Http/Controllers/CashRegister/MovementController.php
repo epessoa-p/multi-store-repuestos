@@ -69,6 +69,29 @@ class MovementController extends Controller
         $allExpense = (float) CashMovement::when($cid, fn ($qq) => $qq->where('company_id', $cid))->where('type', 'expense')->sum('amount');
         $allBalance = $allIncome - $allExpense;
 
+        // Histórico por sucursal (sin filtros, siempre visible)
+        $histRows = CashMovement::query()
+            ->when($cid, fn ($qq) => $qq->where('cash_movements.company_id', $cid))
+            ->join('cash_registers', 'cash_registers.id', '=', 'cash_movements.cash_register_id')
+            ->selectRaw("cash_registers.branch_id as bid,
+                SUM(CASE WHEN cash_movements.type = 'income'  THEN cash_movements.amount ELSE 0 END) as inc,
+                SUM(CASE WHEN cash_movements.type = 'expense' THEN cash_movements.amount ELSE 0 END) as exp")
+            ->groupBy('cash_registers.branch_id')
+            ->get()->keyBy('bid');
+
+        $branchHistory = $branches->map(function ($b) use ($histRows) {
+            $r   = $histRows[$b->id] ?? null;
+            $inc = (float) ($r->inc ?? 0);
+            $exp = (float) ($r->exp ?? 0);
+            return (object) [
+                'name'    => $b->name,
+                'color'   => $b->color ?: '#0a0a0a',
+                'income'  => $inc,
+                'expense' => $exp,
+                'balance' => $inc - $exp,
+            ];
+        })->values();
+
         // Listas paginadas (página independiente por pestaña)
         $ingresos = (clone $movQuery)->where('type', 'income')->paginate(15, ['*'], 'ip')->withQueryString();
         $egresos  = (clone $movQuery)->where('type', 'expense')->paginate(15, ['*'], 'ep')->withQueryString();
@@ -125,18 +148,25 @@ class MovementController extends Controller
         $totalPagar = (float) $porPagar->sum('value');
         $porPagar = $this->paginateCollection($porPagar, 15, 'pp');
 
-        // ── Cierres de caja ───────────────────────────────────
-        $closures = CashRegisterSession::with(['cashRegister.branch', 'closedBy'])
-            ->where('status', 'closed')
-            ->whereBetween('closed_at', [$from, $to])
+        // ── Cierres de caja (incluye las abiertas: pendientes de cierre) ──
+        $closures = CashRegisterSession::with(['cashRegister.branch', 'closedBy', 'openedBy'])
+            ->where(function ($w) use ($from, $to) {
+                // Cerradas dentro del período…
+                $w->where(fn ($x) => $x->where('status', 'closed')->whereBetween('closed_at', [$from, $to]))
+                  // …o abiertas (sin cerrar todavía), sin importar el período
+                  ->orWhere('status', 'open');
+            })
             ->when($cid, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('company_id', $cid)))
             ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('branch_id', $branchId)))
-            ->orderByDesc('closed_at')->paginate(15, ['*'], 'clp')->withQueryString();
+            ->orderByRaw("CASE WHEN status = 'open' THEN 0 ELSE 1 END") // abiertas primero
+            ->orderByDesc('closed_at')
+            ->orderByDesc('opened_at')
+            ->paginate(15, ['*'], 'clp')->withQueryString();
 
         return view('cash.movements.index', compact(
             'branches', 'branch', 'period', 'periodLabel', 'q', 'from', 'to',
             'ingresos', 'egresos', 'ventas', 'gastos', 'balance',
-            'allIncome', 'allExpense', 'allBalance',
+            'allIncome', 'allExpense', 'allBalance', 'branchHistory',
             'porCobrar', 'totalCobrar', 'porPagar', 'totalPagar', 'closures',
             'dateValue', 'weekValue', 'monthValue'
         ) + ['date' => $dateValue,

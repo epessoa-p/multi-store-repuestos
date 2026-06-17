@@ -76,7 +76,7 @@ trait HandlesSaleCreation
                 'branch_id'                => $data['branch_id'] ?? null,
                 'client_id'                => $data['client_id'] ?? null,
                 'cash_register_session_id' => $session?->id,
-                'code'                     => $this->nextSaleCode($companyId),
+                'code'                     => $this->nextSaleCode($companyId, $data['branch_id'] ?? null),
                 'sale_type'                => $saleType,
                 'sale_category'            => $data['sale_category'] ?? 'producto',
                 'payment_plan_id'          => $data['payment_plan_id'] ?? null,
@@ -248,9 +248,13 @@ trait HandlesSaleCreation
         }
     }
 
-    protected function nextSaleCode(int $companyId): string
+    protected function nextSaleCode(int $companyId, ?int $branchId = null): string
     {
-        $count = Sale::withTrashed()->where('company_id', $companyId)->count() + 1;
+        // Correlativo independiente por sucursal
+        $count = Sale::withTrashed()
+            ->where('company_id', $companyId)
+            ->where('branch_id', $branchId)
+            ->count() + 1;
         return 'VEN-' . str_pad((string) $count, 5, '0', STR_PAD_LEFT);
     }
 }

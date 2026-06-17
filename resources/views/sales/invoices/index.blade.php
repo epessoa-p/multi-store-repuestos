@@ -97,9 +97,12 @@
                             <th class="ps-4 py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Código</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Cliente</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Sucursal</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Registró</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Tipo</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Fecha</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Total</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Pagado</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Saldo</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase pe-4" style="letter-spacing:.04em;font-size:.68rem;">Estado pago</th>
                         </tr>
                     </thead>
@@ -115,6 +118,7 @@
                             </td>
                             <td class="py-1 small">{{ $sale->client_name }}</td>
                             <td class="py-1 small text-muted">{{ $sale->branch?->name ?? '—' }}</td>
+                            <td class="py-1 small text-muted">{{ $sale->createdBy?->name ?? '—' }}</td>
                             <td class="py-1">
                                 <span class="badge bg-{{ $sale->sale_type_color }}-subtle text-{{ $sale->sale_type_color }} border border-{{ $sale->sale_type_color }}-subtle" style="font-size:.66rem;">
                                     {{ $sale->sale_type_label }}
@@ -122,6 +126,8 @@
                             </td>
                             <td class="py-1 small text-muted">{{ $sale->sale_date->format('d/m/Y') }}</td>
                             <td class="py-1 text-end fw-semibold">${{ number_format($sale->total, 2) }}</td>
+                            <td class="py-1 text-end small text-success">${{ number_format($sale->paid_amount, 2) }}</td>
+                            <td class="py-1 text-end fw-semibold {{ $sale->balance > 0 ? 'text-danger' : 'text-muted' }}">${{ number_format($sale->balance, 2) }}</td>
                             <td class="py-1 pe-4">
                                 <span class="badge bg-{{ $sale->payment_status_color }}-subtle text-{{ $sale->payment_status_color }} border border-{{ $sale->payment_status_color }}-subtle" style="font-size:.66rem;">
                                     {{ $sale->payment_status_label }}
@@ -135,7 +141,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
                                 <p class="mb-0">No hay ventas registradas.</p>
                                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.create', auth()->user()->getCurrentCompany()))

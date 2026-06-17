@@ -24,14 +24,23 @@ class StatisticsController extends Controller
 {
     private string $period = 'monthly';
     private string $periodNoun = 'mes';
+    private ?int $branchId = null;
 
     public function index(Request $request)
     {
         $user = auth()->user();
         $cid  = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
-        // Período: diario / semanal / mensual (default mensual) + comparativa contra el período anterior
-        $period = in_array($request->get('period'), ['daily', 'weekly', 'monthly'], true) ? $request->get('period') : 'monthly';
+        // Sucursales (tabs con color) + sucursal activa
+        $branches = \App\Models\Branch::when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->orderBy('name')->get(['id', 'name', 'color']);
+        $branchParam = $request->get('branch');
+        $this->branchId = ($branchParam && $branchParam !== 'all' && $branches->contains('id', (int) $branchParam))
+            ? (int) $branchParam : null;
+        $branch = $this->branchId ?? 'all';
+
+        // Período: diario / semanal / quincenal / mensual (default mensual) + comparativa contra el período anterior
+        $period = in_array($request->get('period'), ['daily', 'weekly', 'quincenal', 'monthly'], true) ? $request->get('period') : 'monthly';
         $this->period = $period;
 
         if ($period === 'daily') {
@@ -50,6 +59,19 @@ class StatisticsController extends Controller
             $prev = [$base->copy()->subWeek()->startOfWeek(), $base->copy()->subWeek()->endOfWeek()];
             $periodLabel = 'Semana del ' . $base->copy()->startOfWeek()->format('d/m') . ' al ' . $base->copy()->endOfWeek()->format('d/m/Y');
             $this->periodNoun = 'semana';
+        } elseif ($period === 'quincenal') {
+            $qd   = (string) $request->get('qdate', '');
+            $base = ($qd && strtotime($qd)) ? Carbon::parse($qd) : Carbon::now();
+            $half = $base->day <= 15 ? 1 : 2;
+            if ($half === 1) {
+                $cur  = [$base->copy()->startOfMonth(), $base->copy()->startOfMonth()->addDays(14)->endOfDay()];
+                $prev = [$base->copy()->subMonthNoOverflow()->startOfMonth()->addDays(15), $base->copy()->subMonthNoOverflow()->endOfMonth()];
+            } else {
+                $cur  = [$base->copy()->startOfMonth()->addDays(15), $base->copy()->endOfMonth()];
+                $prev = [$base->copy()->startOfMonth(), $base->copy()->startOfMonth()->addDays(14)->endOfDay()];
+            }
+            $periodLabel = ($half === 1 ? '1ª' : '2ª') . ' quincena de ' . ucfirst($base->translatedFormat('F Y'));
+            $this->periodNoun = 'quincena';
         } else {
             $month = (string) $request->get('month', '');
             $base  = preg_match('/^\d{4}-\d{2}$/', $month) ? Carbon::parse($month . '-01') : Carbon::now()->startOfMonth();
@@ -60,9 +82,10 @@ class StatisticsController extends Controller
         }
 
         // Valores precargados de cada selector
-        $dateValue  = $period === 'daily'   ? $base->format('Y-m-d') : Carbon::now()->format('Y-m-d');
-        $weekValue  = $period === 'weekly'  ? $base->format('o-\WW') : Carbon::now()->format('o-\WW');
-        $monthValue = $period === 'monthly' ? $base->format('Y-m')   : Carbon::now()->format('Y-m');
+        $dateValue     = $period === 'daily'     ? $base->format('Y-m-d') : Carbon::now()->format('Y-m-d');
+        $weekValue     = $period === 'weekly'    ? $base->format('o-\WW') : Carbon::now()->format('o-\WW');
+        $monthValue    = $period === 'monthly'   ? $base->format('Y-m')   : Carbon::now()->format('Y-m');
+        $quincenaValue = $period === 'quincenal' ? $base->format('Y-m-d') : Carbon::now()->format('Y-m-d');
 
         $stats = [
             'ventas'     => $this->salesStats($cid, $base, $cur, $prev),
@@ -74,8 +97,39 @@ class StatisticsController extends Controller
             'alquileres' => $this->rentalsStats($cid, $cur, $prev),
         ];
         $stats['resumen'] = $this->summaryStats($stats);
+        $chartData = $this->buildChartData($stats);
 
-        return view('statistics.index', compact('stats', 'period', 'periodLabel', 'dateValue', 'weekValue', 'monthValue'));
+        $viewData = compact('stats', 'period', 'periodLabel', 'dateValue', 'weekValue', 'monthValue', 'quincenaValue', 'chartData', 'branches', 'branch');
+
+        // AJAX: devolver solo el contenido (panes + datos de gráficos) para refrescar sin recargar
+        if ($request->boolean('partial')) {
+            return response()->json([
+                'html'        => view('statistics.partials.content', $viewData)->render(),
+                'periodLabel' => $periodLabel,
+                'period'      => $period,
+            ]);
+        }
+
+        return view('statistics.index', $viewData);
+    }
+
+    /** Arma el arreglo de datos para los gráficos (compartido por vista inicial y AJAX). */
+    private function buildChartData(array $stats): array
+    {
+        return [
+            'ventasTrend'      => $stats['ventas']['trend'],
+            'ventasCashCredit' => $stats['ventas']['cashCredit'],
+            'ventasTop'        => $stats['ventas']['topProducts'],
+            'ventasComparison' => $stats['ventas']['comparison'],
+            'personal'         => $stats['personal']['chart'],
+            'clientesNew'      => $stats['clientes']['newTrend'],
+            'clientesTop'      => $stats['clientes']['topBuyers'],
+            'comprasTrend'     => $stats['compras']['trend'],
+            'comprasTop'       => $stats['compras']['topSuppliers'],
+            'inventario'       => $stats['inventario']['distribution'],
+            'taller'           => $stats['taller']['distribution'],
+            'alquileres'       => $stats['alquileres']['fleet'],
+        ];
     }
 
     // ── Helpers ───────────────────────────────────────────────
@@ -96,7 +150,7 @@ class StatisticsController extends Controller
     {
         $labels = []; $data = [];
 
-        if ($this->period === 'daily') {
+        if ($this->period === 'daily' || $this->period === 'quincenal') {
             // Últimos 14 días
             $from = $base->copy()->subDays(13)->startOfDay();
             $to   = $base->copy()->endOfDay();
@@ -138,7 +192,120 @@ class StatisticsController extends Controller
 
     private function scopedSales(?int $cid)
     {
-        return Sale::query()->when($cid, fn ($q) => $q->where('company_id', $cid))->where('status', 'completed');
+        return Sale::query()
+            ->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('branch_id', $this->branchId))
+            ->where('status', 'completed');
+    }
+
+    /** Ganancia (ingreso − costo) de las ventas completadas en un rango. */
+    private function salesProfit(?int $cid, array $range): float
+    {
+        $row = SaleItem::query()
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->join('products', 'products.id', '=', 'sale_items.product_id')
+            ->where('sales.status', 'completed')
+            ->when($cid, fn ($q) => $q->where('sales.company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('sales.branch_id', $this->branchId))
+            ->whereBetween('sales.sale_date', $range)
+            ->selectRaw('COALESCE(SUM(sale_items.subtotal),0) rev, COALESCE(SUM(sale_items.quantity*products.cost),0) cost')
+            ->first();
+
+        return (float) $row->rev - (float) $row->cost;
+    }
+
+    /** Comparativa período actual vs. anterior comparable, segmentada según el filtro activo. */
+    private function salesComparison(?int $cid, string $period, Carbon $base, array $cur, array $prev): array
+    {
+        $labels = []; $curData = []; $prevData = [];
+        $mode = 'grouped'; $single = []; $highlight = 0;
+
+        if ($period === 'daily') {
+            // Por franjas de 2h; comparado con el mismo día de la semana anterior
+            $curRange  = [$base->copy()->startOfDay(), $base->copy()->endOfDay()];
+            $prevRange = [$base->copy()->subWeek()->startOfDay(), $base->copy()->subWeek()->endOfDay()];
+            $labels = ['12am', '2am', '4am', '6am', '8am', '10am', '12pm', '2pm', '4pm', '6pm', '8pm', '10pm'];
+            $bucket = function ($range) use ($cid) {
+                $rows = $this->scopedSales($cid)->whereBetween('created_at', $range)
+                    ->selectRaw('FLOOR(HOUR(created_at)/2) b, SUM(total) t')->groupBy('b')->pluck('t', 'b');
+                $arr = array_fill(0, 12, 0.0);
+                foreach ($rows as $b => $t) { $bi = (int) $b; if ($bi >= 0 && $bi < 12) $arr[$bi] = (float) $t; }
+                return $arr;
+            };
+            $curData = $bucket($curRange); $prevData = $bucket($prevRange);
+            $wd = $base->translatedFormat('l');
+            $prevLabel = ucfirst($wd) . ' anterior';
+            $curLabel  = $base->isToday() ? 'Hoy' : ucfirst($wd);
+            $note = 'Comparado con el ' . mb_strtolower($wd) . ' de la semana anterior';
+        } elseif ($period === 'weekly') {
+            // Por día de la semana (Lun→Dom)
+            $curRange = $cur; $prevRange = $prev;
+            $dows  = [2 => 'Lunes', 3 => 'Martes', 4 => 'Miércoles', 5 => 'Jueves', 6 => 'Viernes', 7 => 'Sábado', 1 => 'Domingo'];
+            $order = [2, 3, 4, 5, 6, 7, 1];
+            $bucket = fn ($range) => $this->scopedSales($cid)->whereBetween('sale_date', $range)
+                ->selectRaw('DAYOFWEEK(sale_date) dw, SUM(total) t')->groupBy('dw')->pluck('t', 'dw');
+            $cb = $bucket($curRange); $pb = $bucket($prevRange);
+            foreach ($order as $dw) { $labels[] = $dows[$dw]; $curData[] = (float) ($cb[$dw] ?? 0); $prevData[] = (float) ($pb[$dw] ?? 0); }
+            $prevLabel = 'Semana anterior'; $curLabel = 'Semana actual'; $note = 'Comparado con la semana anterior';
+        } elseif ($period === 'quincenal') {
+            // Por día, alineado por posición (día 1º del rango actual vs 1º del anterior)
+            $curRange = $cur; $prevRange = $prev;
+            $bucket = fn ($range) => $this->scopedSales($cid)->whereBetween('sale_date', $range)
+                ->selectRaw('DATE(sale_date) d, SUM(total) t')->groupBy('d')->pluck('t', 'd');
+            $cb = $bucket($curRange); $pb = $bucket($prevRange);
+            $curStart  = Carbon::parse($cur[0])->startOfDay();
+            $curEnd    = Carbon::parse($cur[1])->startOfDay();
+            $prevStart = Carbon::parse($prev[0])->startOfDay();
+            $nDays = $curStart->diffInDays($curEnd) + 1;
+            for ($i = 0; $i < $nDays; $i++) {
+                $cd = $curStart->copy()->addDays($i);
+                $pd = $prevStart->copy()->addDays($i);
+                $labels[]   = $cd->format('j');
+                $curData[]  = (float) ($cb[$cd->format('Y-m-d')] ?? 0);
+                $prevData[] = (float) ($pb[$pd->format('Y-m-d')] ?? 0);
+            }
+            $prevLabel = 'Quincena anterior'; $curLabel = 'Quincena actual'; $note = 'Comparado con la quincena anterior';
+        } else {
+            // Mensual: una barra por mes (total mensual), últimos 6 meses; mes seleccionado resaltado
+            $curRange = $cur; $prevRange = $prev;
+            $from = Carbon::parse($cur[0])->copy()->subMonths(5)->startOfMonth();
+            $to   = Carbon::parse($cur[1]);
+            $rows = $this->scopedSales($cid)->whereBetween('sale_date', [$from, $to])
+                ->selectRaw("DATE_FORMAT(sale_date,'%Y-%m') ym, SUM(total) t")->groupBy('ym')->pluck('t', 'ym');
+            $c = $from->copy();
+            while ($c <= $to) {
+                $labels[]  = ucfirst($c->translatedFormat('M Y'));
+                $single[]  = (float) ($rows[$c->format('Y-m')] ?? 0);
+                $c->addMonth();
+            }
+            $mode = 'single';
+            $highlight = count($single) - 1;
+            $prevLabel = 'Mes anterior'; $curLabel = 'Mes actual'; $note = 'Comparado con el mes anterior';
+        }
+
+        if ($mode === 'single') {
+            $totalCur  = (float) $this->scopedSales($cid)->whereBetween('sale_date', $curRange)->sum('total');
+            $totalPrev = (float) $this->scopedSales($cid)->whereBetween('sale_date', $prevRange)->sum('total');
+        } else {
+            $totalCur  = array_sum($curData);
+            $totalPrev = array_sum($prevData);
+        }
+        $profitCur  = $this->salesProfit($cid, $curRange);
+        $profitPrev = $this->salesProfit($cid, $prevRange);
+
+        return [
+            'mode'      => $mode,
+            'labels'    => $labels,
+            'cur'       => $curData,
+            'prev'      => $prevData,
+            'data'      => $single,
+            'highlight' => $highlight,
+            'prevLabel' => $prevLabel,
+            'curLabel'  => $curLabel,
+            'note'      => $note,
+            'totalCur'  => $totalCur,  'totalPrev'  => $totalPrev,  'totalPct'  => $this->pct($totalCur, $totalPrev),
+            'profitCur' => $profitCur, 'profitPrev' => $profitPrev, 'profitPct' => $this->pct($profitCur, $profitPrev),
+        ];
     }
 
     private function fmt(float $n): string
@@ -173,6 +340,7 @@ class StatisticsController extends Controller
             ->join('products', 'products.id', '=', 'sale_items.product_id')
             ->where('sales.status', 'completed')
             ->when($cid, fn ($q) => $q->where('sales.company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('sales.branch_id', $this->branchId))
             ->whereBetween('sales.sale_date', $cur)
             ->selectRaw('products.name as name, SUM(sale_items.subtotal) as total')
             ->groupBy('products.id', 'products.name')->orderByDesc('total')->limit(6)->get();
@@ -205,6 +373,7 @@ class StatisticsController extends Controller
             'trend'       => $trend,
             'cashCredit'  => ['cash' => $cash, 'credit' => $credit],
             'topProducts' => ['labels' => $topProducts->pluck('name'), 'data' => $topProducts->pluck('total')],
+            'comparison'  => $this->salesComparison($cid, $this->period, $base, $cur, $prev),
             'insights'    => $ins,
         ];
     }
@@ -394,7 +563,8 @@ class StatisticsController extends Controller
     // ── TALLER ─────────────────────────────────────────────────
     private function workshopStats(?int $cid, array $cur, array $prev): array
     {
-        $woQ = WorkOrder::query()->when($cid, fn ($q) => $q->where('company_id', $cid));
+        $woQ = WorkOrder::query()->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('branch_id', $this->branchId));
 
         $byStatus = (clone $woQ)->whereNotIn('status', ['anulada'])
             ->selectRaw('status, COUNT(*) c')->groupBy('status')->pluck('c', 'status');
@@ -439,14 +609,17 @@ class StatisticsController extends Controller
     // ── ALQUILERES ─────────────────────────────────────────────
     private function rentalsStats(?int $cid, array $cur, array $prev): array
     {
-        $unitQ = MotoUnit::query()->when($cid, fn ($q) => $q->where('company_id', $cid));
+        $unitQ = MotoUnit::query()->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('branch_id', $this->branchId));
         $disp  = (int) (clone $unitQ)->where('status', 'disponible')->count();
         $alq   = (int) (clone $unitQ)->where('status', 'alquilada')->count();
         $mant  = (int) (clone $unitQ)->where('status', 'mantenimiento')->count();
         $fleet = $disp + $alq + $mant;
         $ocupacion = $fleet > 0 ? round($alq / $fleet * 100, 1) : 0;
 
-        $payQ = RentalPayment::query()->when($cid, fn ($q) => $q->where('company_id', $cid))->whereIn('type', ['alquiler', 'penalizacion']);
+        $payQ = RentalPayment::query()->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->whereHas('contract', fn ($w) => $w->where('branch_id', $this->branchId)))
+            ->whereIn('type', ['alquiler', 'penalizacion']);
         $incomeCur  = (float) (clone $payQ)->whereBetween('payment_date', $cur)->sum('amount');
         $incomePrev = (float) (clone $payQ)->whereBetween('payment_date', $prev)->sum('amount');
         $pctIncome  = $this->pct($incomeCur, $incomePrev);
@@ -455,12 +628,15 @@ class StatisticsController extends Controller
         $overdueQ = RentalInstallment::query()->whereIn('status', ['pendiente', 'parcial'])
             ->whereDate('due_date', '<', Carbon::today()->toDateString())
             ->whereHas('contract', function ($q) use ($cid) {
-                $q->whereIn('status', ['contrato', 'entregada'])->when($cid, fn ($w) => $w->where('company_id', $cid));
+                $q->whereIn('status', ['contrato', 'entregada'])
+                  ->when($cid, fn ($w) => $w->where('company_id', $cid))
+                  ->when($this->branchId, fn ($w) => $w->where('branch_id', $this->branchId));
             });
         $overdueCount = (int) (clone $overdueQ)->count();
         $overdueAmt   = (float) (clone $overdueQ)->selectRaw('COALESCE(SUM(amount - paid_amount),0) v')->value('v');
 
         $deposits = (float) RentalContract::query()->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->when($this->branchId, fn ($q) => $q->where('branch_id', $this->branchId))
             ->whereIn('status', ['contrato', 'entregada'])->where('deposit_status', 'retenido')->sum('deposit');
 
         $ins = [];

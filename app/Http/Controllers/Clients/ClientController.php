@@ -16,7 +16,15 @@ class ClientController extends Controller
     public function index()
     {
         $user  = auth()->user();
-        $query = Client::with(['company'])->latest();
+        $query = Client::with(['company'])
+            ->withCount(['sales', 'workOrders'])
+            // Saldo pendiente del cliente (ventas a crédito por cobrar)
+            ->addSelect(['credit_due' => \App\Models\Sales\Sale::selectRaw('COALESCE(SUM(total - paid_amount), 0)')
+                ->whereColumn('client_id', 'clients.id')
+                ->where('sale_type', 'credit')
+                ->whereIn('payment_status', ['pending', 'partial'])
+                ->where('status', 'completed')])
+            ->latest();
 
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->getCurrentCompany()?->id);

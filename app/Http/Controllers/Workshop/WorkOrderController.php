@@ -71,7 +71,7 @@ class WorkOrderController extends Controller
             $wo = WorkOrder::create([
                 ...$validated,
                 'company_id'     => $companyId,
-                'code'           => $this->nextCode($companyId),
+                'code'           => $this->nextCode($companyId, $validated['branch_id'] ?? null),
                 'status'         => 'recibida',
                 'payment_status' => 'pendiente',
                 'created_by'     => auth()->id(),
@@ -315,9 +315,13 @@ class WorkOrderController extends Controller
 
     // ── Helpers ───────────────────────────────────────────────
 
-    private function nextCode(int $companyId): string
+    private function nextCode(int $companyId, ?int $branchId = null): string
     {
-        $count = WorkOrder::withTrashed()->where('company_id', $companyId)->count() + 1;
+        // Correlativo independiente por sucursal
+        $count = WorkOrder::withTrashed()
+            ->where('company_id', $companyId)
+            ->where('branch_id', $branchId)
+            ->count() + 1;
         return 'OT-' . str_pad((string) $count, 5, '0', STR_PAD_LEFT);
     }
 

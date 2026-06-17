@@ -55,6 +55,11 @@
                     <i class="bi bi-shield-lock"></i> Roles
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('system.reset') ? 'active' : '' }}" href="{{ route('system.reset') }}">
+                    <i class="bi bi-exclamation-octagon"></i> Reiniciar sistema
+                </a>
+            </li>
         </ul>
         @endif
 
@@ -533,13 +538,18 @@
     </aside>
 
     <main class="app-main">
-        <nav class="navbar navbar-expand-lg app-topbar mb-4">
+        <nav class="navbar navbar-expand-lg app-topbar mb-2">
             <div class="container-fluid px-0">
                 <div class="d-flex align-items-center gap-3">
-                    <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebarMobile" aria-controls="appSidebarMobile">
-                        <i class="bi bi-list"></i>
+                    {{-- Hamburguesa: escritorio (colapsa el sidebar) --}}
+                    <button class="btn btn-icon d-none d-lg-inline-flex" type="button" id="sidebarToggle" title="Mostrar/ocultar menú" aria-label="Mostrar/ocultar menú">
+                        <i class="bi bi-list" style="font-size:1.5rem;line-height:1;"></i>
                     </button>
-                    <span class="topbar-label">Overview</span>
+                    {{-- Hamburguesa: móvil (abre el offcanvas) --}}
+                    <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebarMobile" aria-controls="appSidebarMobile">
+                        <i class="bi bi-list" style="font-size:1.5rem;line-height:1;"></i>
+                    </button>
+
                     <span class="topbar-separator">|</span>
                     <span class="text-muted small">{{ auth()->user()->is_super_admin ? 'Modo Global' : ($currentCompany?->name ?? 'Sin empresa activa') }}</span>
 
@@ -604,9 +614,10 @@
         @endif
 
         @if($message = session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="bi bi-check-circle"></i> {{ $message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="app-toast app-toast-success" id="appFlashToast" role="status" data-delay="4000">
+                <i class="bi bi-check-circle-fill"></i>
+                <span class="flex-grow-1">{{ $message }}</span>
+                <button type="button" class="app-toast-close" aria-label="Cerrar">&times;</button>
             </div>
         @endif
 
@@ -647,6 +658,7 @@
             <ul class="nav flex-column gap-1 mb-3">
                 <li><a class="nav-link app-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}"><i class="bi bi-building me-2"></i>Empresas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}"><i class="bi bi-shield-lock me-2"></i>Roles</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('system.reset') ? 'active' : '' }}" href="{{ route('system.reset') }}"><i class="bi bi-exclamation-octagon me-2"></i>Reiniciar sistema</a></li>
             </ul>
             @endif
 
@@ -990,9 +1002,13 @@
     /* ── Main column ────────────────────────────────────────────── */
     .app-main {
         flex: 1;
-        padding: 0 22px 28px;
+        padding: 0 14px 24px;
         min-width: 0;
     }
+
+    /* Sidebar colapsado (toggle hamburguesa en escritorio) */
+    .app-shell.sidebar-collapsed .app-sidebar { display: none; }
+    .app-shell.sidebar-collapsed .app-sidebar::before { display: none; }
 
     /* ── Topbar (oscuro elegante con acento rojo) ───────────────── */
     .app-topbar {
@@ -1001,8 +1017,8 @@
         border-bottom: 1px solid var(--border-soft);
         border-radius: 0;
         padding: 12px 20px;
-        margin-left: -22px;
-        margin-right: -22px;
+        margin-left: -14px;
+        margin-right: -14px;
         margin-bottom: 22px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
@@ -1026,11 +1042,14 @@
         border: 1px solid var(--border-soft);
         background: #fff;
         color: var(--text-primary);
-        display: grid;
-        place-items: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 0;
+        line-height: 1;
         transition: all .15s ease;
     }
+    .btn-icon > i { line-height: 1; vertical-align: middle; }
     .btn-icon:hover {
         background: var(--brand-red-tint);
         color: var(--brand-red);
@@ -1136,11 +1155,11 @@
         .app-sidebar { display: none; }
         .app-sidebar::before { display: none; }
 
-        .app-main { padding: 0 16px 24px; }
+        .app-main { padding: 0 10px 20px; }
 
         .app-topbar {
-            margin-left: -16px;
-            margin-right: -16px;
+            margin-left: -10px;
+            margin-right: -10px;
         }
     }
 
@@ -1174,6 +1193,31 @@
     }
     .sidebar-section-title.collapsed .sec-chevron { transform: rotate(-90deg); }
     .nav-section-hidden { display: none !important; }
+
+    /* ── Toast emergente (mensaje de éxito) ─────────────────────── */
+    .app-toast {
+        position: fixed;
+        top: 1rem; right: 1rem;
+        z-index: 1090;
+        display: flex; align-items: center; gap: .6rem;
+        max-width: 360px;
+        background: #fff;
+        border: 1px solid var(--border-soft);
+        border-left: 4px solid #16a34a;
+        border-radius: 10px;
+        padding: .7rem .9rem;
+        box-shadow: 0 8px 26px rgba(16,24,40,.16);
+        font-size: .88rem;
+        animation: app-toast-in .25s ease;
+    }
+    .app-toast-success i { color: #16a34a; font-size: 1.1rem; }
+    .app-toast-close {
+        border: 0; background: transparent; color: #9aa0a6;
+        font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 .1rem;
+    }
+    .app-toast-close:hover { color: #444; }
+    .app-toast.hide { opacity: 0; transform: translateX(12px); transition: opacity .3s ease, transform .3s ease; }
+    @keyframes app-toast-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 </style>
 @endpush
 
@@ -1252,12 +1296,40 @@
         });
     }
 
+    // ── Hamburguesa: colapsar/mostrar el sidebar en escritorio ───
+    function setupSidebarToggle() {
+        const shell  = document.querySelector('.app-shell');
+        const toggle = document.getElementById('sidebarToggle');
+        if (!shell || !toggle) return;
+        const KEY = 'vrSidebarCollapsed';
+        if (localStorage.getItem(KEY) === '1') shell.classList.add('sidebar-collapsed');
+        toggle.addEventListener('click', function () {
+            shell.classList.toggle('sidebar-collapsed');
+            localStorage.setItem(KEY, shell.classList.contains('sidebar-collapsed') ? '1' : '0');
+        });
+    }
+
+    // ── Toast de éxito: auto-cierre ──────────────────────────────
+    function setupFlashToast() {
+        const toast = document.getElementById('appFlashToast');
+        if (!toast) return;
+        const delay = parseInt(toast.dataset.delay, 10) || 4000;
+        const close = function () {
+            toast.classList.add('hide');
+            setTimeout(function () { toast.remove(); }, 320);
+        };
+        toast.querySelector('.app-toast-close')?.addEventListener('click', close);
+        setTimeout(close, delay);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const desktop = document.querySelector('.app-sidebar');
         if (desktop) setupCollapsibleSections(desktop);
         const mobile = document.querySelector('#appSidebarMobile');
         if (mobile) setupCollapsibleSections(mobile);
         setupSidebarScroll();
+        setupSidebarToggle();
+        setupFlashToast();
     });
 })();
 </script>

@@ -56,7 +56,7 @@
                     <div class="card-body p-4">
                         <div class="mb-4">
                             <label class="form-label fw-semibold" for="warehouse_id">Almacén destino <span class="text-danger">*</span></label>
-                            <select name="warehouse_id" id="warehouse_id" class="form-select" required>
+                            <select name="warehouse_id" id="warehouse_id" class="form-select" data-no-search required>
                                 <option value="" disabled selected>Selecciona el almacén destino…</option>
                                 @foreach($warehouses as $wh)
                                 <option value="{{ $wh->id }}">{{ $wh->name }}</option>
@@ -107,7 +107,7 @@
                         <table class="table table-sm mb-0 align-middle">
                             <thead class="table-light"><tr><th class="ps-4" style="width:46px;">Col.</th><th>Campo</th><th class="pe-4">Ejemplo</th></tr></thead>
                             <tbody>
-                                @foreach([['A','Nombre producto *','(01) Carburador Trueno'],['B','Categoría','Carburación (999)'],['C','Marca','Trueno'],['D','Modelo(s)','CG150, CG200'],['E','Notas','Incluye filtro'],['F','Costo','104'],['G','Precio','140'],['H','Cantidad','25']] as $c)
+                                @foreach([['A','Nombre producto *','(01) Carburador Trueno'],['B','Categoría','Carburación (999)'],['C','Marca','Trueno'],['D','Cantidad','25'],['E','Costo','104'],['F','Precio','140'],['G','Modelo(s)','CG150, CG200'],['H','Detalle','Incluye filtro'],['I','Código','CARB-010']] as $c)
                                 <tr>
                                     <td class="ps-4"><span class="badge bg-dark" style="font-size:.72rem;">{{ $c[0] }}</span></td>
                                     <td class="fw-semibold small">{{ $c[1] }}</td>
@@ -157,11 +157,12 @@
                                 <th class="py-2" style="font-size:.66rem;min-width:180px;">Nombre</th>
                                 <th class="py-2" style="font-size:.66rem;min-width:120px;">Categoría</th>
                                 <th class="py-2" style="font-size:.66rem;min-width:100px;">Marca</th>
-                                <th class="py-2" style="font-size:.66rem;min-width:120px;">Modelo(s)</th>
-                                <th class="py-2" style="font-size:.66rem;min-width:120px;">Notas</th>
+                                <th class="py-2 text-center" style="font-size:.66rem;width:80px;">Cant.</th>
                                 <th class="py-2 text-end" style="font-size:.66rem;width:90px;">Costo</th>
                                 <th class="py-2 text-end" style="font-size:.66rem;width:90px;">Precio</th>
-                                <th class="py-2 text-center" style="font-size:.66rem;width:80px;">Cant.</th>
+                                <th class="py-2" style="font-size:.66rem;min-width:120px;">Modelo(s)</th>
+                                <th class="py-2" style="font-size:.66rem;min-width:120px;">Detalle</th>
+                                <th class="py-2" style="font-size:.66rem;min-width:110px;">Código</th>
                                 <th class="py-2 pe-3" style="width:32px;"></th>
                             </tr>
                         </thead>
@@ -268,6 +269,11 @@
 .wiz-line { flex:1; height:2px; background:#e9ecef; min-width:24px; max-width:80px; }
 #prevTable input { font-size:.76rem; padding:.15rem .4rem; }
 #prevTable .form-control-sm { min-width:60px; }
+#prevTable .r-code.code-missing {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 .15rem rgba(220,53,69,.12);
+    background: #fff5f5;
+}
 </style>
 @endpush
 
@@ -333,7 +339,10 @@
         dropZone.style.borderColor = '#ddd'; dropZone.style.background = '#fafafa'; refreshVerify();
     });
     dropZone.addEventListener('click', function (e) {
-        if (e.target.closest('#clearFile')) return; fileInput.click();
+        // Los botones internos (Explorar / Quitar) manejan su propia acción;
+        // evita abrir el explorador dos veces.
+        if (e.target.closest('button')) return;
+        fileInput.click();
     });
     dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.style.borderColor = '#0a0a0a'; dropZone.style.background = '#f0f0f0'; });
     dropZone.addEventListener('dragleave', function () { if (!fileInput.files[0]) { dropZone.style.borderColor = '#ddd'; dropZone.style.background = '#fafafa'; } });
@@ -368,22 +377,29 @@
             const badge = r.status === 'update'
                 ? '<span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:.62rem;">Actualiza</span>'
                 : '<span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.62rem;">Nuevo</span>';
-            return '<tr class="prev-row" data-status="' + r.status + '" data-code="' + esc(r.code) + '" data-catcode="' + esc(r.category_code) + '">' +
+            return '<tr class="prev-row" data-status="' + r.status + '" data-catcode="' + esc(r.category_code) + '">' +
                 '<td class="ps-3">' + badge + '</td>' +
                 '<td><input class="form-control form-control-sm r-name" value="' + esc(r.name) + '"></td>' +
                 '<td><input class="form-control form-control-sm r-category" value="' + esc(r.category) + '"></td>' +
                 '<td><input class="form-control form-control-sm r-brand" value="' + esc(r.brand) + '"></td>' +
-                '<td><input class="form-control form-control-sm r-models" value="' + esc(r.models) + '"></td>' +
-                '<td><input class="form-control form-control-sm r-notes" value="' + esc(r.notes) + '"></td>' +
+                '<td><input type="number" step="1" min="0" class="form-control form-control-sm text-center r-qty" value="' + (r.qty ?? 0) + '"></td>' +
                 '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm text-end r-cost" value="' + (r.cost ?? 0) + '"></td>' +
                 '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm text-end r-price" value="' + (r.price ?? 0) + '"></td>' +
-                '<td><input type="number" step="1" min="0" class="form-control form-control-sm text-center r-qty" value="' + (r.qty ?? 0) + '"></td>' +
+                '<td><input class="form-control form-control-sm r-models" value="' + esc(r.models) + '"></td>' +
+                '<td><input class="form-control form-control-sm r-notes" value="' + esc(r.notes) + '"></td>' +
+                '<td><input class="form-control form-control-sm r-code ' + (r.code ? '' : 'code-missing') + '" value="' + esc(r.code) + '" placeholder="Sin código" title="Producto sin código"></td>' +
                 '<td class="pe-3 text-center"><button type="button" class="btn btn-sm btn-light border text-danger p-0 px-1 row-del" title="Quitar"><i class="bi bi-x"></i></button></td>' +
                 '</tr>';
         }).join('');
         updateRowCount();
         body.querySelectorAll('.row-del').forEach(function (b) {
             b.addEventListener('click', function () { this.closest('tr').remove(); updateRowCount(); });
+        });
+        // Alerta visual: marcar en rojo los códigos vacíos (actualiza al escribir)
+        body.querySelectorAll('.r-code').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                this.classList.toggle('code-missing', this.value.trim() === '');
+            });
         });
     }
     function updateRowCount() {
@@ -407,7 +423,7 @@
                 name: row.querySelector('.r-name').value.trim(),
                 category: row.querySelector('.r-category').value.trim(),
                 category_code: row.dataset.catcode || null,
-                code: row.dataset.code || null,
+                code: row.querySelector('.r-code').value.trim() || null,
                 brand: row.querySelector('.r-brand').value.trim(),
                 models: row.querySelector('.r-models').value.trim(),
                 notes: row.querySelector('.r-notes').value.trim(),

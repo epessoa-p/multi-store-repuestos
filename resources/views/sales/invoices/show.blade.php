@@ -77,9 +77,9 @@
                     @endif
                     @if($sale->sale_type === 'credit' && $sale->balance > 0)
                         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', auth()->user()->getCurrentCompany()))
-                        <a href="{{ route('credit.cobranza') }}" class="btn btn-primary btn-sm">
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cobroModal{{ $sale->id }}">
                             <i class="bi bi-cash-coin me-1"></i>Cobrar
-                        </a>
+                        </button>
                         @endif
                     @endif
                     <a href="{{ route('sales.index') }}" class="btn btn-light border btn-sm">
@@ -324,9 +324,9 @@
                     <div class="fw-bold text-danger fs-4">${{ number_format($sale->balance, 2) }}</div>
                     @if($sale->sale_type === 'credit')
                         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', auth()->user()->getCurrentCompany()))
-                        <a href="{{ route('credit.cobranza') }}" class="btn btn-primary btn-sm w-100 mt-3 no-print">
-                            <i class="bi bi-cash-coin me-1"></i>Ir a cobranza
-                        </a>
+                        <button type="button" class="btn btn-primary btn-sm w-100 mt-3 no-print" data-bs-toggle="modal" data-bs-target="#cobroModal{{ $sale->id }}">
+                            <i class="bi bi-cash-coin me-1"></i>Registrar cobro
+                        </button>
                         @endif
                     @endif
                 </div>
@@ -383,6 +383,12 @@
     </div>
 
 </div>
+
+{{-- Modal de cobro (venta a crédito con saldo) --}}
+@if($sale->sale_type === 'credit' && $sale->balance > 0 && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('credit.collect', auth()->user()->getCurrentCompany())))
+    @include('sales.credit.partials.cobro-modal', ['sale' => $sale])
+    @include('sales.credit.partials.cobro-assets')
+@endif
 
 @push('styles')
 <style>

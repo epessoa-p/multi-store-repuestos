@@ -48,6 +48,8 @@
                             <th class="ps-3 py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Cliente</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">CI / Doc.</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Contacto</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase text-center" style="letter-spacing:.04em;font-size:.72rem;">Ventas / Servicios</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.72rem;">Por cobrar</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Ubicación</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end pe-3" style="letter-spacing:.04em;font-size:.72rem;">Estado</th>
                         </tr>
@@ -77,6 +79,23 @@
                             </td>
                             <td class="py-2">{{ $client->id_number ?: '—' }}</td>
                             <td class="py-2">{{ $client->phone ?: '—' }}</td>
+                            <td class="py-2 text-center">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1" title="Ventas">
+                                    <i class="bi bi-cart me-1"></i>{{ $client->sales_count }}
+                                </span>
+                                <span class="badge bg-info-subtle text-info border border-info-subtle" title="Servicios de taller">
+                                    <i class="bi bi-tools me-1"></i>{{ $client->work_orders_count }}
+                                </span>
+                            </td>
+                            <td class="py-2 text-end">
+                                @if((float) $client->credit_due > 0.001)
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="Saldo pendiente por cobrar">
+                                        <i class="bi bi-exclamation-circle me-1"></i>${{ number_format($client->credit_due, 2) }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td class="py-2">
                                 @if($client->location_link)
                                     <a href="{{ $client->location_link }}" target="_blank"
@@ -95,7 +114,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
+                            <td colspan="7" class="text-center py-5 text-muted">
                                 <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
                                 No hay clientes registrados.
                             </td>

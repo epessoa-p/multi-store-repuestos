@@ -121,8 +121,8 @@ class StockController extends Controller
     /** Descarga la plantilla Excel de inventario */
     public function template()
     {
-        $headers = ['Nombre producto', 'Categoría', 'Marca', 'Modelo(s)', 'Notas', 'Costo', 'Precio', 'Cantidad'];
-        $example = ['(10) Carburador TRUENO', 'Carburacion y aire(999)', 'FULLER', 'CG150, CG200', 'Repuesto original', '104', '140', '5'];
+        $headers = ['Nombre producto', 'Categoría', 'Marca', 'Cantidad', 'Costo', 'Precio', 'Modelo(s)', 'Detalle', 'Código'];
+        $example = ['Carburador TRUENO', 'Carburacion y aire (999)', 'FULLER', '5', '104', '140', 'CG150, CG200', 'Repuesto original', 'CARB-010'];
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -131,8 +131,8 @@ class StockController extends Controller
         $sheet->fromArray($example, null, 'A2');
 
         // Estilo cabecera
-        $sheet->getStyle('A1:H1')->getFont()->setBold(true);
-        foreach (range('A', 'H') as $col) {
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        foreach (range('A', 'I') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -307,24 +307,22 @@ class StockController extends Controller
             $name = $this->cleanText((string) ($row['A'] ?? ''));
             if ($name === '') continue;
 
-            $prodNum = $this->parseParenNumber((string) ($row['A'] ?? ''));
+            // Orden de columnas: A Nombre · B Categoría · C Marca · D Cantidad ·
+            //                    E Costo · F Precio · G Modelos · H Detalle · I Código
             $catRaw  = (string) ($row['B'] ?? '');
             $catCode = $this->parseParenCode($catRaw);
-            $code    = ($catCode !== null && $prodNum !== null)
-                ? $catCode . '-' . str_pad((string) $prodNum, 4, '0', STR_PAD_LEFT)
-                : null;
 
             $out[] = [
-                'name'          => $name,
+                'name'          => $name,                                  // descarta el (núm) del nombre
                 'category'      => $this->cleanText($catRaw),
-                'category_code' => $catCode,
-                'code'          => $code,
+                'category_code' => $catCode,                               // (núm) de la categoría
+                'code'          => trim((string) ($row['I'] ?? '')) ?: null, // código propio del producto
                 'brand'         => $this->cleanText((string) ($row['C'] ?? '')),
-                'models'        => trim((string) ($row['D'] ?? '')),
-                'notes'         => trim((string) ($row['E'] ?? '')),
-                'cost'          => (float) ($row['F'] ?? 0),
-                'price'         => (float) ($row['G'] ?? 0),
-                'qty'           => (float) ($row['H'] ?? 0),
+                'qty'           => (float) ($row['D'] ?? 0),
+                'cost'          => (float) ($row['E'] ?? 0),
+                'price'         => (float) ($row['F'] ?? 0),
+                'models'        => trim((string) ($row['G'] ?? '')),
+                'notes'         => trim((string) ($row['H'] ?? '')),       // "Detalle" → description
             ];
         }
         return $out;

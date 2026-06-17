@@ -25,6 +25,10 @@
         .center { text-align: center; }
         .right  { text-align: right; }
         .bold   { font-weight: 700; }
+        .head { display: flex; align-items: center; gap: 6px; }
+        .head .logo { flex: 0 0 auto; }
+        .head .logo img { width: 26mm; height: auto; max-height: 26mm; object-fit: contain; display: block; }
+        .head .biz { flex: 1 1 auto; text-align: right; min-width: 0; }
         .muted  { color: #333; }
         .biz-name { font-size: 15px; font-weight: 800; letter-spacing: .3px; }
         .biz-sub  { font-size: 10px; }
@@ -52,15 +56,21 @@
 <body>
 <div class="ticket">
 
-    {{-- ── Encabezado ──────────────────────────────── --}}
-    <div class="center">
-        <div class="biz-name">{{ $company->name ?? 'VR Motors' }}</div>
-        <div class="biz-sub muted">Repuestos &amp; Accesorios</div>
-        @if($branch?->name)<div class="biz-sub bold">{{ $branch->name }}</div>@endif
-        @if($branch?->address)<div class="biz-sub">{{ $branch->address }}</div>@elseif($company?->address)<div class="biz-sub">{{ $company->address }}</div>@endif
-        @php $tel = $branch?->phone ?: $company?->phone; @endphp
-        @if($tel)<div class="biz-sub">Tel: {{ $tel }}</div>@endif
-        @if($company?->ruc)<div class="biz-sub">NIT: {{ $company->ruc }}</div>@endif
+    {{-- ── Encabezado: logo a la izquierda, datos a la derecha ── --}}
+    @php $logoPath = public_path('images/logo_blanco.jpeg'); @endphp
+    <div class="head">
+        @if(file_exists($logoPath))
+        <div class="logo"><img src="{{ asset('images/logo_blanco.jpeg') }}" alt="Logo"></div>
+        @endif
+        <div class="biz">
+            <div class="biz-name">{{ $company->name ?? 'VR Motors' }}</div>
+            <div class="biz-sub muted">Repuestos &amp; Accesorios</div>
+            @if($branch?->name)<div class="biz-sub bold">{{ $branch->name }}</div>@endif
+            @if($branch?->address)<div class="biz-sub">{{ $branch->address }}</div>@elseif($company?->address)<div class="biz-sub">{{ $company->address }}</div>@endif
+            @php $tel = $branch?->phone ?: $company?->phone; @endphp
+            @if($tel)<div class="biz-sub">Tel: {{ $tel }}</div>@endif
+            @if($company?->ruc)<div class="biz-sub">NIT: {{ $company->ruc }}</div>@endif
+        </div>
     </div>
 
     <hr class="sep">

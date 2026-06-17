@@ -276,4 +276,22 @@
     </div>
 
 </div>
+
+@push('styles')
+<style>
+.activity-row { cursor: pointer; }
+.activity-row:hover { background: #faf7f7; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('click', function (e) {
+    const row = e.target.closest('tr.activity-row');
+    if (!row || !row.dataset.href) return;
+    if (e.target.closest('a, button, form, input')) return; // respetar enlaces/acciones internas
+    window.location = row.dataset.href;
+});
+</script>
+@endpush
 @endsection

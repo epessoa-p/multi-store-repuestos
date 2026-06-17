@@ -5,7 +5,7 @@
 <div class="container-fluid">
 
     {{-- ── Header ──────────────────────────────────────────────────── --}}
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
         <div>
             <h1 class="mb-1 fw-bold fs-4">
                 <i class="bi bi-arrow-left-right me-2 text-muted"></i>Movimientos
@@ -25,30 +25,55 @@
         </div>
 
         {{-- Totales históricos (fijos, no se ajustan con los filtros) --}}
-        <div class="card border-0 shadow-sm">
-            <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
-                <div class="text-muted lh-1 text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">
-                    <i class="bi bi-clock-history d-block mb-1" style="font-size:.95rem;"></i>Histórico
+        <div class="card border-0 shadow-sm" style="min-width:300px;">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-muted lh-1 text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">
+                        <i class="bi bi-clock-history d-block mb-1" style="font-size:.95rem;"></i>Histórico
+                    </div>
+                    <div class="vr"></div>
+                    <div class="text-center">
+                        <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Balance</div>
+                        <div class="fw-bold {{ $allBalance >= 0 ? 'text-dark' : 'text-danger' }}" style="font-size:.92rem;">Bs. {{ number_format($allBalance, 2) }}</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Ingresos</div>
+                        <div class="fw-bold text-success" style="font-size:.92rem;">Bs. {{ number_format($allIncome, 2) }}</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Egresos</div>
+                        <div class="fw-bold text-danger" style="font-size:.92rem;">Bs. {{ number_format($allExpense, 2) }}</div>
+                    </div>
                 </div>
-                <div class="vr"></div>
-                <div class="text-center">
-                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Balance</div>
-                    <div class="fw-bold {{ $allBalance >= 0 ? 'text-dark' : 'text-danger' }}" style="font-size:.92rem;">Bs. {{ number_format($allBalance, 2) }}</div>
+
+                {{-- Histórico por sucursal (siempre visible, sin filtros) --}}
+                @if($branchHistory->count())
+                <hr class="my-2">
+                <div class="text-muted text-uppercase mb-1" style="font-size:.58rem;letter-spacing:.04em;">
+                    <i class="bi bi-buildings me-1"></i>Por sucursal
                 </div>
-                <div class="text-center">
-                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Ingresos</div>
-                    <div class="fw-bold text-success" style="font-size:.92rem;">Bs. {{ number_format($allIncome, 2) }}</div>
+                <div class="d-flex flex-column gap-1">
+                    @foreach($branchHistory as $bh)
+                    <div class="d-flex align-items-center justify-content-between gap-3" style="font-size:.72rem;">
+                        <span class="d-inline-flex align-items-center gap-1 text-truncate" style="max-width:120px;" title="{{ $bh->name }}">
+                            <span style="width:8px;height:8px;border-radius:50%;background:{{ $bh->color }};display:inline-block;flex-shrink:0;"></span>
+                            {{ $bh->name }}
+                        </span>
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="text-success" title="Ingresos">+{{ number_format($bh->income, 2) }}</span>
+                            <span class="text-danger" title="Egresos">−{{ number_format($bh->expense, 2) }}</span>
+                            <span class="fw-bold {{ $bh->balance >= 0 ? 'text-dark' : 'text-danger' }}" style="min-width:74px;text-align:right;" title="Balance">Bs. {{ number_format($bh->balance, 2) }}</span>
+                        </span>
+                    </div>
+                    @endforeach
                 </div>
-                <div class="text-center">
-                    <div class="text-muted text-uppercase" style="font-size:.6rem;letter-spacing:.04em;">Egresos</div>
-                    <div class="fw-bold text-danger" style="font-size:.92rem;">Bs. {{ number_format($allExpense, 2) }}</div>
-                </div>
+                @endif
             </div>
         </div>
     </div>
 
     {{-- ── Sucursales (tabs con color, arriba del recuadro) ──────────── --}}
-    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap" id="branchTabs">
+    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap" id="branchTabs">
         <button type="button" class="branch-tab {{ $branch === 'all' ? 'active' : '' }}" data-branch="all">
             <i class="bi bi-grid-3x3-gap me-1"></i>Todas
         </button>
@@ -178,25 +203,21 @@
         {{-- ════════════════════════════════════════════════════════════ --}}
         <div class="tab-pane fade show active" id="paneTransacciones" role="tabpanel">
 
-            {{-- KPI Cards --}}
-            <div class="row g-3 mb-4">
+            {{-- KPI Cards (compactas) --}}
+            <div class="row g-2 mb-3">
 
                 {{-- Balance --}}
                 <div class="col-sm-6 col-xl-4">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body p-4">
-                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                <div class="rounded-3 d-flex align-items-center justify-content-center"
-                                     style="width:44px;height:44px;background:rgba(10,10,10,.07);">
-                                    <i class="bi bi-graph-up-arrow fs-5 text-dark"></i>
-                                </div>
-                                <span class="badge bg-dark text-white border border-dark-subtle small">Balance</span>
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:38px;height:38px;background:rgba(10,10,10,.07);">
+                                <i class="bi bi-graph-up-arrow text-dark"></i>
                             </div>
-                            <div class="fw-bold fs-4 mb-1
-                                {{ $balance >= 0 ? 'text-dark' : 'text-danger' }}">
-                                Bs. {{ number_format($balance, 2) }}
+                            <div class="min-w-0">
+                                <div class="text-muted text-uppercase" style="font-size:.62rem;letter-spacing:.04em;">Balance del período</div>
+                                <div class="fw-bold fs-5 lh-1 {{ $balance >= 0 ? 'text-dark' : 'text-danger' }}">Bs. {{ number_format($balance, 2) }}</div>
                             </div>
-                            <div class="text-muted small">Balance neto del período</div>
                         </div>
                     </div>
                 </div>
@@ -204,16 +225,15 @@
                 {{-- Ventas --}}
                 <div class="col-sm-6 col-xl-4">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body p-4">
-                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                <div class="rounded-3 d-flex align-items-center justify-content-center"
-                                     style="width:44px;height:44px;background:rgba(22,163,74,.08);">
-                                    <i class="bi bi-box-arrow-in-down fs-5 text-success"></i>
-                                </div>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle small">Ingresos</span>
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:38px;height:38px;background:rgba(22,163,74,.08);">
+                                <i class="bi bi-box-arrow-in-down text-success"></i>
                             </div>
-                            <div class="fw-bold fs-4 mb-1 text-success">Bs. {{ number_format($ventas, 2) }}</div>
-                            <div class="text-muted small">Ventas totales del período</div>
+                            <div class="min-w-0">
+                                <div class="text-muted text-uppercase" style="font-size:.62rem;letter-spacing:.04em;">Ingresos</div>
+                                <div class="fw-bold fs-5 lh-1 text-success">Bs. {{ number_format($ventas, 2) }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -221,16 +241,15 @@
                 {{-- Gastos --}}
                 <div class="col-sm-6 col-xl-4">
                     <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body p-4">
-                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                <div class="rounded-3 d-flex align-items-center justify-content-center"
-                                     style="width:44px;height:44px;background:rgba(225,6,0,.07);">
-                                    <i class="bi bi-box-arrow-up fs-5 text-danger"></i>
-                                </div>
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">Egresos</span>
+                        <div class="card-body p-3 d-flex align-items-center gap-3">
+                            <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:38px;height:38px;background:rgba(225,6,0,.07);">
+                                <i class="bi bi-box-arrow-up text-danger"></i>
                             </div>
-                            <div class="fw-bold fs-4 mb-1 text-danger">Bs. {{ number_format($gastos, 2) }}</div>
-                            <div class="text-muted small">Gastos totales del período</div>
+                            <div class="min-w-0">
+                                <div class="text-muted text-uppercase" style="font-size:.62rem;letter-spacing:.04em;">Egresos</div>
+                                <div class="fw-bold fs-5 lh-1 text-danger">Bs. {{ number_format($gastos, 2) }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -586,7 +605,7 @@
                                     <th class="py-3 fw-semibold text-muted text-uppercase"
                                         style="letter-spacing:.04em;font-size:.72rem;">Diferencia</th>
                                     <th class="py-3 fw-semibold text-muted text-uppercase"
-                                        style="letter-spacing:.04em;font-size:.72rem;">Cerró</th>
+                                        style="letter-spacing:.04em;font-size:.72rem;">Responsable</th>
                                     <th class="py-3 fw-semibold text-muted text-uppercase pe-4"
                                         style="letter-spacing:.04em;font-size:.72rem;">Fecha</th>
                                 </tr>
@@ -594,44 +613,73 @@
                             <tbody>
                                 @forelse($closures as $c)
                                 @php
-                                    $expectedAmt = $c->expected_amount ?? $c->expectedBalance();
+                                    $isOpen      = $c->status === 'open' || !$c->closed_at;
+                                    $expectedAmt = $isOpen ? $c->expectedBalance() : ($c->expected_amount ?? $c->expectedBalance());
                                     $diff        = (float) $c->difference;
                                     $diffClass   = $diff == 0 ? 'text-muted' : ($diff > 0 ? 'text-success' : 'text-danger');
                                     $diffPrefix  = $diff > 0 ? '+' : '';
                                 @endphp
-                                <tr class="border-bottom border-light">
+                                <tr class="border-bottom border-light" @if($isOpen) style="background:rgba(245,158,11,.06);" @endif>
                                     <td class="ps-4 py-2 fw-semibold small">
                                         {{ $c->cashRegister?->name ?? '—' }}
+                                        @if($isOpen)
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1"
+                                              style="font-size:.62rem;"><i class="bi bi-unlock me-1"></i>Pendiente de cierre</span>
+                                        @endif
                                     </td>
                                     <td class="py-2 small text-muted">
                                         {{ $c->cashRegister?->branch?->name ?? '—' }}
                                     </td>
                                     <td class="py-2 small">Bs. {{ number_format($c->opening_amount, 2) }}</td>
-                                    <td class="py-2 small">Bs. {{ number_format($c->closing_amount, 2) }}</td>
-                                    <td class="py-2 small">Bs. {{ number_format($expectedAmt, 2) }}</td>
-                                    <td class="py-2 small fw-semibold {{ $diffClass }}">
-                                        {{ $diffPrefix }}{{ number_format($diff, 2) }}
-                                        @if($diff > 0)
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1"
-                                                  style="font-size:.62rem;">sobrante</span>
-                                        @elseif($diff < 0)
-                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1"
-                                                  style="font-size:.62rem;">faltante</span>
+                                    <td class="py-2 small">
+                                        @if($isOpen)
+                                            <span class="text-warning fw-semibold">Sin cerrar</span>
                                         @else
-                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"
-                                                  style="font-size:.62rem;">exacto</span>
+                                            Bs. {{ number_format($c->closing_amount, 2) }}
                                         @endif
                                     </td>
-                                    <td class="py-2 small">{{ $c->closedBy?->name ?? '—' }}</td>
+                                    <td class="py-2 small">
+                                        Bs. {{ number_format($expectedAmt, 2) }}
+                                        @if($isOpen)<div class="text-muted" style="font-size:.7rem;">saldo actual</div>@endif
+                                    </td>
+                                    <td class="py-2 small fw-semibold {{ $isOpen ? 'text-muted' : $diffClass }}">
+                                        @if($isOpen)
+                                            —
+                                        @else
+                                            {{ $diffPrefix }}{{ number_format($diff, 2) }}
+                                            @if($diff > 0)
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1"
+                                                      style="font-size:.62rem;">sobrante</span>
+                                            @elseif($diff < 0)
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1"
+                                                      style="font-size:.62rem;">faltante</span>
+                                            @else
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"
+                                                      style="font-size:.62rem;">exacto</span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    <td class="py-2 small">
+                                        @if($isOpen)
+                                            {{ $c->openedBy?->name ?? '—' }}
+                                        @else
+                                            {{ $c->closedBy?->name ?? '—' }}
+                                        @endif
+                                    </td>
                                     <td class="py-2 pe-4 small text-muted">
-                                        {{ $c->closed_at ? $c->closed_at->format('d/m/Y H:i') : '—' }}
+                                        @if($isOpen)
+                                            <span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size:.5rem;vertical-align:middle;"></i>Abierta</span>
+                                            <div style="font-size:.72rem;">{{ $c->opened_at ? $c->opened_at->format('d/m/Y H:i') : '—' }}</div>
+                                        @else
+                                            {{ $c->closed_at ? $c->closed_at->format('d/m/Y H:i') : '—' }}
+                                        @endif
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
                                     <td colspan="8" class="text-center py-5 text-muted">
                                         <i class="bi bi-lock fs-1 d-block mb-2 opacity-25"></i>
-                                        <p class="mb-0 small">Sin cierres de caja en este período.</p>
+                                        <p class="mb-0 small">Sin cajas aperturadas ni cierres en este período.</p>
                                     </td>
                                 </tr>
                                 @endforelse

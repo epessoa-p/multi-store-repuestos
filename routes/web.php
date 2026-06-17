@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SystemResetController;
 use App\Http\Controllers\Admin\CargoController;
 use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Clients\ClientController;
@@ -47,6 +48,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/{role}/edit',[RoleController::class, 'edit'])->name('edit');
         Route::put('/{role}',     [RoleController::class, 'update'])->name('update');
         Route::delete('/{role}',  [RoleController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Reinicio del sistema (solo super_admin) ───────────────────
+    Route::middleware('check-role:super_admin')->group(function () {
+        Route::get('admin/system/reset',  [SystemResetController::class, 'index'])->name('system.reset');
+        Route::post('admin/system/reset', [SystemResetController::class, 'run'])->name('system.reset.run');
     });
 
     // ── Usuarios ──────────────────────────────────────────────────

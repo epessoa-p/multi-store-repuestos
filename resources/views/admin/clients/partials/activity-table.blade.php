@@ -19,8 +19,12 @@
             </thead>
             <tbody>
                 @foreach($rows as $row)
-                @php $cells = $render($row); @endphp
-                <tr class="border-bottom border-light">
+                @php
+                    $cells = $render($row);
+                    $rowLink = null;
+                    foreach ($cells as $c) { if (!empty($c['link'])) { $rowLink = $c['link']; break; } }
+                @endphp
+                <tr class="border-bottom border-light {{ $rowLink ? 'activity-row' : '' }}" @if($rowLink) data-href="{{ $rowLink }}" @endif>
                     @foreach($cells as $i => $cell)
                     <td class="{{ $i === 0 ? 'ps-4' : '' }} {{ $loop->last ? 'pe-4' : '' }} {{ ($cell['end'] ?? false) || $loop->last ? 'text-end' : '' }} py-2 {{ ($cell['muted'] ?? false) ? 'text-muted' : '' }} {{ ($cell['bold'] ?? false) ? 'fw-semibold' : '' }} {{ ($cell['mono'] ?? false) ? 'font-monospace' : '' }}">
                         @if(isset($cell['badge']))
