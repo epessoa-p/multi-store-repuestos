@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/cobranza', [CreditController::class, 'cobranza'])->name('cobranza')->middleware('check-permission:credit.collect');
         Route::get('/reports',  [CreditController::class, 'reports'])->name('reports')->middleware('check-permission:credit-reports.view');
         Route::post('/{sale}/payment', [CreditController::class, 'registerPayment'])->name('payment')->middleware('check-permission:credit.collect');
+        Route::get('/{sale}/receipt',  [CreditController::class, 'paymentReceipt'])->name('receipt')->middleware('check-permission:credit.collect');
     });
 
     // ── Vehículos ─────────────────────────────────────────────

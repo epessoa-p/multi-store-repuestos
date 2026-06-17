@@ -445,6 +445,16 @@
         setTimeout(printReceiptInIframe, 400);
     });
     @endif
+
+    @if(session('cobro_receipt_url'))
+    // Auto-impresión del recibo de cobro recién registrado.
+    document.addEventListener('DOMContentLoaded', function () {
+        const f = document.createElement('iframe');
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        f.src = @json(session('cobro_receipt_url'));
+        document.body.appendChild(f);
+    });
+    @endif
 </script>
 @endpush
 

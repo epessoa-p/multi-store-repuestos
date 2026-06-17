@@ -150,11 +150,35 @@ class CreditController extends Controller
 
             $sale->refresh()->recalcPaymentStatus();
 
-            return back()->with('success', 'Cobro registrado exitosamente.');
+            // Recibo térmico del cobro (auto-impresión en la vista de origen)
+            $receiptUrl = route('credit.receipt', [
+                'sale'   => $sale->id,
+                'amount' => $amount,
+                'method' => $meta['method'],
+                'date'   => $meta['payment_date'],
+            ]);
+
+            return back()
+                ->with('success', 'Cobro registrado exitosamente.')
+                ->with('cobro_receipt_url', $receiptUrl);
         } catch (\Throwable $e) {
             Log::error('Error al registrar cobro', ['sale' => $sale->id, 'msg' => $e->getMessage()]);
             return back()->withErrors(['error' => 'Error al registrar el cobro: ' . $e->getMessage()]);
         }
+    }
+
+    /** Recibo térmico (80mm) de un cobro registrado */
+    public function paymentReceipt(Sale $sale, Request $request)
+    {
+        $this->authorizeSale($sale);
+
+        $sale->load(['client', 'company', 'branch', 'createdBy']);
+
+        $amount = (float) $request->query('amount', 0);
+        $method = $request->query('method', 'efectivo');
+        $date   = $request->query('date', now()->toDateString());
+
+        return view('sales.credit.receipt', compact('sale', 'amount', 'method', 'date'));
     }
 
     /** Ventas a Crédito (lista dedicada) */
