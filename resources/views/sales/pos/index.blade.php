@@ -98,8 +98,8 @@
         {{-- ── LEFT: PRODUCT GRID ──────────────────────────────────────── --}}
         <div class="col-lg-8">
             {{-- Search --}}
-            <div class="mb-2">
-                <div class="input-group input-group-sm shadow-sm">
+            <div class="mb-2 d-flex gap-2">
+                <div class="input-group input-group-sm shadow-sm flex-grow-1">
                     <span class="input-group-text bg-white border-end-0">
                         <i class="bi bi-search text-muted"></i>
                     </span>
@@ -110,6 +110,10 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
+                <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold flex-shrink-0"
+                        data-bs-toggle="modal" data-bs-target="#quickItemModal" title="Vender un producto que no está en la lista">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>Venta rápida
+                </button>
             </div>
             {{-- Category filter bar (multiselección) --}}
             <div class="d-flex align-items-center gap-2 mb-2 flex-nowrap">
@@ -400,6 +404,53 @@
     </div>
 </div>
 
+{{-- ─── VENTA RÁPIDA (producto no listado) ────────────────────────── --}}
+<div class="modal fade" id="quickItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-semibold">
+                    <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Venta rápida
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">
+                    Agrega un producto que no está en la lista o no tienes en stock. Escribe el nombre y el precio.
+                </p>
+                <div id="qiAlert" class="alert alert-danger d-none py-2 small"></div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" for="qi_name">Nombre del producto <span class="text-danger">*</span></label>
+                    <input type="text" id="qi_name" class="form-control" placeholder="Ej. Empaque de motor genérico" autocomplete="off">
+                </div>
+                <div class="row g-3">
+                    <div class="col-7">
+                        <label class="form-label small fw-semibold" for="qi_price">Precio unitario <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light px-2">$</span>
+                            <input type="number" id="qi_price" class="form-control" min="0" step="0.01" value="" placeholder="0.00" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label small fw-semibold" for="qi_qty">Cantidad <span class="text-danger">*</span></label>
+                        <input type="number" id="qi_qty" class="form-control text-center" min="1" step="1" value="1" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="alert alert-light border mt-3 mb-0 py-2" style="font-size:.78rem;">
+                    <i class="bi bi-info-circle me-1 text-muted"></i>
+                    Si el nombre coincide con un producto existente, se descontará su stock automáticamente.
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning text-dark fw-semibold px-4" onclick="confirmQuickItem()">
+                    <i class="bi bi-cart-plus me-1"></i>Agregar al carrito
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ─── STOCK POR ALMACÉN (revisión) ──────────────────────────────── --}}
 <div class="modal fade" id="stockModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -588,6 +639,11 @@ const WAREHOUSES = @json($warehousesJson);
 const WH_STOCK   = @json($productWhStock);   // { product_id: [ {wid, qty} ] }
 let cart = {};
 let installmentCount = 0;
+let directItemSeq = 0;   // secuencia para ítems de "venta rápida" (sin product_id)
+
+// Escapes para insertar texto del usuario en HTML / atributos
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 const selectedCats   = new Set();
 const selectedModels = new Set();
 const stockCats      = new Set();
@@ -844,6 +900,41 @@ function renderGrid(filter) {
     }).join('');
 }
 
+// ── VENTA RÁPIDA (ítem libre, sin producto registrado) ──────────────
+function confirmQuickItem() {
+    const name  = document.getElementById('qi_name').value.trim();
+    const price = parseFloat(document.getElementById('qi_price').value);
+    const qty   = Math.max(1, Math.floor(parseInt(document.getElementById('qi_qty').value, 10) || 1));
+    const alertBox = document.getElementById('qiAlert');
+    alertBox.classList.add('d-none');
+
+    if (!name)                    { qiError('Escribe el nombre del producto.'); return; }
+    if (isNaN(price) || price < 0) { qiError('Ingresa un precio válido.'); return; }
+
+    addDirectItem(name, price, qty);
+
+    document.getElementById('qi_name').value  = '';
+    document.getElementById('qi_price').value = '';
+    document.getElementById('qi_qty').value   = '1';
+    bootstrap.Modal.getInstance(document.getElementById('quickItemModal'))?.hide();
+    showToast('«' + name + '» agregado al carrito.', 'success');
+}
+
+function qiError(msg) {
+    const a = document.getElementById('qiAlert');
+    a.textContent = msg;
+    a.classList.remove('d-none');
+}
+
+function addDirectItem(name, price, qty) {
+    const key = 'd_' + (++directItemSeq);
+    cart[key] = {
+        product: { id: null, name: name, price: price, cost: 0, code: null, stock: Infinity, direct: true },
+        qty: qty,
+    };
+    renderCart();
+}
+
 // ── CART LOGIC ──────────────────────────────────────────────────────
 function addToCart(pid) {
     const p = PRODUCTS.find(x => x.id === pid);
@@ -876,10 +967,10 @@ function renderCart() {
     const count   = document.getElementById('cartCount');
     const inputs  = document.getElementById('cartInputs');
 
-    const items = Object.values(cart);
-    count.textContent = items.length + (items.length === 1 ? ' item' : ' items');
+    const entries = Object.entries(cart);
+    count.textContent = entries.length + (entries.length === 1 ? ' item' : ' items');
 
-    if (items.length === 0) {
+    if (entries.length === 0) {
         empty.style.display = '';
         table.style.display = 'none';
         inputs.innerHTML = '';
@@ -889,36 +980,49 @@ function renderCart() {
     empty.style.display = 'none';
     table.style.display = '';
 
-    body.innerHTML = items.map((it, i) => {
-        const sub = (it.qty * it.product.price).toFixed(2);
+    body.innerHTML = entries.map(([key, it]) => {
+        const sub      = (it.qty * it.product.price).toFixed(2);
+        const isDirect = it.product.direct;
+        const subLine  = isDirect
+            ? `<span class="badge bg-warning text-dark" style="font-size:.6rem;"><i class="bi bi-lightning-charge-fill me-1"></i>Venta rápida</span>`
+            : `<div class="text-muted" style="font-size:.68rem;">${it.product.code ? escHtml(it.product.code) : 'Sin código'}</div>`;
+        const maxAttr  = isDirect ? '' : `max="${it.product.stock}"`;
         return `
         <tr>
             <td class="ps-3 py-2">
-                <div class="fw-semibold lh-sm" style="font-size:.78rem;">${it.product.name}</div>
-                <div class="text-muted" style="font-size:.68rem;">${it.product.code ? it.product.code : 'Sin código'}</div>
+                <div class="fw-semibold lh-sm" style="font-size:.78rem;">${escHtml(it.product.name)}</div>
+                ${subLine}
             </td>
             <td class="text-center py-2">
                 <input type="number" class="form-control form-control-sm cart-qty-input"
-                       min="1" step="1" inputmode="numeric" max="${it.product.stock}"
+                       min="1" step="1" inputmode="numeric" ${maxAttr}
                        value="${it.qty}"
-                       oninput="updateQty(${it.product.id}, this.value)">
+                       oninput="updateQty('${key}', this.value)">
             </td>
             <td class="text-end py-2">$${it.product.price.toFixed(2)}</td>
             <td class="text-end py-2 fw-semibold">$${sub}</td>
             <td class="pe-2 py-2">
                 <button type="button" class="btn btn-sm btn-light border text-danger p-0 px-1"
-                        onclick="removeFromCart(${it.product.id})" title="Quitar">
+                        onclick="removeFromCart('${key}')" title="Quitar">
                     <i class="bi bi-x"></i>
                 </button>
             </td>
         </tr>`;
     }).join('');
 
-    inputs.innerHTML = items.map((it, i) => `
-        <input type="hidden" name="items[${i}][product_id]" value="${it.product.id}">
-        <input type="hidden" name="items[${i}][quantity]"   value="${it.qty}">
-        <input type="hidden" name="items[${i}][unit_price]" value="${it.product.price}">
-    `).join('');
+    inputs.innerHTML = entries.map(([key, it], i) => {
+        if (it.product.direct) {
+            return `
+            <input type="hidden" name="items[${i}][name]"       value="${escAttr(it.product.name)}">
+            <input type="hidden" name="items[${i}][direct]"     value="1">
+            <input type="hidden" name="items[${i}][quantity]"   value="${it.qty}">
+            <input type="hidden" name="items[${i}][unit_price]" value="${it.product.price}">`;
+        }
+        return `
+            <input type="hidden" name="items[${i}][product_id]" value="${it.product.id}">
+            <input type="hidden" name="items[${i}][quantity]"   value="${it.qty}">
+            <input type="hidden" name="items[${i}][unit_price]" value="${it.product.price}">`;
+    }).join('');
 
     recalcCart();
 }

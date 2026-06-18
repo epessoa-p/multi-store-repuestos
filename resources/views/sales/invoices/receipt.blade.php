@@ -105,7 +105,7 @@
             @php $lineSub = $item->quantity * $item->unit_price - ($item->discount ?? 0); @endphp
             <tr>
                 <td>
-                    <div class="it-name">{{ $item->product?->name ?: 'Producto' }}</div>
+                    <div class="it-name">{{ $item->display_name }}</div>
                     <div class="it-line">
                         {{ number_format($item->quantity, 0) }} x {{ $money($item->unit_price) }}
                         @if($item->discount > 0) (-{{ $money($item->discount) }}) @endif

@@ -12,7 +12,7 @@ class SaleItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sale_id', 'product_id', 'quantity', 'unit_price', 'discount', 'subtotal',
+        'sale_id', 'product_id', 'description', 'quantity', 'unit_price', 'discount', 'subtotal',
     ];
 
     protected $casts = [
@@ -30,5 +30,11 @@ class SaleItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** Nombre a mostrar: descripción libre (venta rápida) o el nombre del producto. */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->description ?: ($this->product?->name ?: 'Producto');
     }
 }

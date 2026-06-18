@@ -47,22 +47,48 @@ trait HandlesSaleCreation
                 ]);
             }
 
-            // 1. Validar stock y calcular subtotal
+            // 1. Resolver ítems (normales y de "venta rápida"), validar stock y calcular subtotal
             $subtotal = 0;
+            $resolved = [];
             foreach ($items as $i) {
-                $product = Product::lockForUpdate()->find($i['product_id']);
-                $qty     = (float) $i['quantity'];
-
-                if (!$product) {
-                    throw ValidationException::withMessages(['items' => 'Producto no encontrado.']);
-                }
-                if ((float) $product->current_stock < $qty) {
-                    throw ValidationException::withMessages([
-                        'items' => "Stock insuficiente de «{$product->name}» (disponible: {$product->current_stock}, solicitado: {$qty}).",
-                    ]);
-                }
+                $qty          = (float) $i['quantity'];
+                $unitPrice    = (float) $i['unit_price'];
                 $lineDiscount = (float) ($i['discount'] ?? 0);
-                $subtotal    += ($qty * (float) $i['unit_price']) - $lineDiscount;
+                $isDirect     = !empty($i['direct']);
+                $name         = isset($i['name']) ? trim((string) $i['name']) : null;
+
+                if ($isDirect) {
+                    // Venta rápida: enlazar a un producto existente por nombre (normalizado).
+                    // Si coincide se descuenta stock aunque quede negativo (no se valida).
+                    $product = $name
+                        ? Product::where('company_id', $companyId)
+                            ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
+                            ->lockForUpdate()
+                            ->first()
+                        : null;
+                } else {
+                    $product = Product::lockForUpdate()->find($i['product_id']);
+
+                    if (!$product) {
+                        throw ValidationException::withMessages(['items' => 'Producto no encontrado.']);
+                    }
+                    if ((float) $product->current_stock < $qty) {
+                        throw ValidationException::withMessages([
+                            'items' => "Stock insuficiente de «{$product->name}» (disponible: {$product->current_stock}, solicitado: {$qty}).",
+                        ]);
+                    }
+                }
+
+                $subtotal += ($qty * $unitPrice) - $lineDiscount;
+
+                $resolved[] = [
+                    'product'    => $product,
+                    'qty'        => $qty,
+                    'unit_price' => $unitPrice,
+                    'discount'   => $lineDiscount,
+                    'name'       => $name,
+                    'direct'     => $isDirect,
+                ];
             }
 
             $discount = (float) ($data['discount'] ?? 0);
@@ -95,35 +121,38 @@ trait HandlesSaleCreation
             ]);
 
             // 3. Items + salida de inventario + descuento de stock
-            foreach ($items as $i) {
-                $qty          = (float) $i['quantity'];
-                $unitPrice    = (float) $i['unit_price'];
-                $lineDiscount = (float) ($i['discount'] ?? 0);
+            foreach ($resolved as $r) {
+                $product = $r['product'];
 
                 SaleItem::create([
-                    'sale_id'    => $sale->id,
-                    'product_id' => $i['product_id'],
-                    'quantity'   => $qty,
-                    'unit_price' => $unitPrice,
-                    'discount'   => $lineDiscount,
-                    'subtotal'   => ($qty * $unitPrice) - $lineDiscount,
+                    'sale_id'     => $sale->id,
+                    'product_id'  => $product?->id,
+                    'description' => $r['direct'] ? $r['name'] : null,
+                    'quantity'    => $r['qty'],
+                    'unit_price'  => $r['unit_price'],
+                    'discount'    => $r['discount'],
+                    'subtotal'    => ($r['qty'] * $r['unit_price']) - $r['discount'],
                 ]);
 
-                InventoryMovement::create([
-                    'company_id'    => $companyId,
-                    'warehouse_id'  => $warehouseId,
-                    'branch_id'     => $data['branch_id'] ?? null,
-                    'product_id'    => $i['product_id'],
-                    'user_id'       => auth()->id(),
-                    'type'          => 'out',
-                    'quantity'      => $qty,
-                    'unit_cost'     => $unitPrice,
-                    'reference'     => $sale->code,
-                    'notes'         => 'Venta ' . $sale->code,
-                    'movement_date' => $sale->sale_date,
-                ]);
+                // Solo afecta inventario si hay producto enlazado (los ítems de venta
+                // rápida sin coincidencia no tocan stock).
+                if ($product) {
+                    InventoryMovement::create([
+                        'company_id'    => $companyId,
+                        'warehouse_id'  => $warehouseId,
+                        'branch_id'     => $data['branch_id'] ?? null,
+                        'product_id'    => $product->id,
+                        'user_id'       => auth()->id(),
+                        'type'          => 'out',
+                        'quantity'      => $r['qty'],
+                        'unit_cost'     => $r['unit_price'],
+                        'reference'     => $sale->code,
+                        'notes'         => 'Venta ' . $sale->code,
+                        'movement_date' => $sale->sale_date,
+                    ]);
 
-                Product::where('id', $i['product_id'])->decrement('current_stock', $qty);
+                    Product::where('id', $product->id)->decrement('current_stock', $r['qty']);
+                }
             }
 
             // 4. Cobro / cuotas

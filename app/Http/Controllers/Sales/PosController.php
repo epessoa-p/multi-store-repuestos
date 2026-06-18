@@ -112,7 +112,9 @@ class PosController extends Controller
             'discount_pct'       => 'nullable|integer|min:0|max:100',
             'interest'           => 'nullable|numeric|min:0',
             'items'              => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.name'       => 'required_without:items.*.product_id|nullable|string|max:255',
+            'items.*.direct'     => 'nullable|boolean',
             'items.*.quantity'   => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             // Crédito rápido
@@ -131,9 +133,11 @@ class PosController extends Controller
         $pct = (int) ($validated['discount_pct'] ?? 0);
         $discount = 0.0;
         if ($pct > 0) {
-            $costs = Product::whereIn('id', collect($validated['items'])->pluck('product_id'))->pluck('cost', 'id');
+            $costs = Product::whereIn('id', collect($validated['items'])->pluck('product_id')->filter())->pluck('cost', 'id');
             foreach ($validated['items'] as $it) {
-                $profit = ((float) $it['unit_price'] - (float) ($costs[$it['product_id']] ?? 0)) * (float) $it['quantity'];
+                // Ítems de venta rápida sin product_id → costo 0 (toda la línea es ganancia).
+                $cost   = (float) ($costs[$it['product_id'] ?? 0] ?? 0);
+                $profit = ((float) $it['unit_price'] - $cost) * (float) $it['quantity'];
                 if ($profit > 0) $discount += $profit * $pct / 100;
             }
             $discount = round($discount, 2);
