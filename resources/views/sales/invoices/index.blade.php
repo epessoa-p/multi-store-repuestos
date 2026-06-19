@@ -25,10 +25,17 @@
     {{-- Sucursales (pills) --}}
     @if($branches->count())
     <div class="d-flex align-items-center gap-2 flex-wrap mb-2 filter-zone">
+        @if($canAllBranches)
         <a href="{{ route('sales.index', array_merge(request()->except('branch'), [])) }}"
            class="wh-pill btn btn-sm rounded-pill px-3 {{ (!$activeBranch || $activeBranch === 'all') ? 'active' : '' }}">
             <i class="bi bi-grid-3x3-gap me-1"></i>Todos
         </a>
+        @else
+        <span class="wh-pill btn btn-sm rounded-pill px-3 disabled" aria-disabled="true"
+              title="No tienes permiso para ver todas las sucursales" style="pointer-events:none;opacity:.55;">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Todos
+        </span>
+        @endif
         @foreach($branches as $b)
         <a href="{{ route('sales.index', array_merge(request()->except('branch'), ['branch' => $b->id])) }}"
            class="wh-pill btn btn-sm rounded-pill px-3 {{ (string)$activeBranch === (string)$b->id ? 'active' : '' }}">

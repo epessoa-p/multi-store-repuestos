@@ -176,7 +176,7 @@
         @if($canSales)
         <div class="sidebar-section-title mt-4">Ventas</div>
         <ul class="nav flex-column gap-1">
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales-dashboard.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">
                     <i class="bi bi-graph-up-arrow"></i> Dashboard
@@ -299,7 +299,7 @@
         @if($canWorkshop)
         <div class="sidebar-section-title mt-4">Taller</div>
         <ul class="nav flex-column gap-1">
-            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop-dashboard.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('workshop.dashboard') ? 'active' : '' }}" href="{{ route('workshop.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
@@ -412,11 +412,13 @@
         @if($canRentals)
         <div class="sidebar-section-title mt-4">Alquileres</div>
         <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals-dashboard.view', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('rentals.dashboard') ? 'active' : '' }}" href="{{ route('rentals.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
+            @endif
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('rentals.calendar') ? 'active' : '' }}" href="{{ route('rentals.calendar') }}">
                     <i class="bi bi-calendar3"></i> Calendario
@@ -708,7 +710,7 @@
             @if($canSales)
             <div class="sidebar-section-title">Ventas</div>
             <ul class="nav flex-column gap-1 mb-3">
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.view', $currentCompany))
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales-dashboard.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}"><i class="bi bi-graph-up-arrow me-2"></i>Dashboard</a></li>
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('clients.view', $currentCompany))
@@ -765,7 +767,7 @@
             @if($canWorkshop)
             <div class="sidebar-section-title">Taller</div>
             <ul class="nav flex-column gap-1 mb-3">
-                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.view', $currentCompany))
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop-dashboard.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('workshop.dashboard') ? 'active' : '' }}" href="{{ route('workshop.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('workshop.create', $currentCompany))
@@ -814,7 +816,9 @@
             @if($canRentals)
             <div class="sidebar-section-title">Alquileres</div>
             <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals-dashboard.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.dashboard') ? 'active' : '' }}" href="{{ route('rentals.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                @endif
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.calendar') ? 'active' : '' }}" href="{{ route('rentals.calendar') }}"><i class="bi bi-calendar3 me-2"></i>Calendario</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.reservations') || request()->routeIs('rentals.create') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}"><i class="bi bi-bookmark-plus me-2"></i>Reservas</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.contracts') ? 'active' : '' }}" href="{{ route('rentals.contracts') }}"><i class="bi bi-file-earmark-text me-2"></i>Contratos</a></li>

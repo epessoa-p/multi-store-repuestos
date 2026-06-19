@@ -63,7 +63,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // ── Dashboard de ventas ───────────────────────────────────
-    Route::get('sales/dashboard', [SaleController::class, 'dashboard'])->name('sales.dashboard')->middleware('check-permission:sales.view');
+    Route::get('sales/dashboard', [SaleController::class, 'dashboard'])->name('sales.dashboard')->middleware('check-permission:sales-dashboard.view');
 
     // ── Ventas (gestión / formulario) ─────────────────────────
     Route::prefix('sales/invoices')->name('sales.')->group(function () {

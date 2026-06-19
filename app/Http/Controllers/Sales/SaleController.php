@@ -42,29 +42,47 @@ class SaleController extends Controller
             }
         }
 
-        $activeBranch = request('branch');
-        if ($activeBranch && $activeBranch !== 'all') {
-            $query->where('branch_id', $activeBranch);
-        }
+        // ¿Puede ver todas las sucursales? (permiso o super admin)
+        $canAllBranches = $user->is_super_admin
+            || $user->hasPermissionInCompany('sales.view-all-branches', $user->getCurrentCompany());
 
-        // Sucursales para los tabs: solo la(s) sucursal(es) de la caja asignada al personal.
-        // El super admin (o un personal sin caja asignada) sigue viendo todas las de la empresa.
-        $branchesQuery = Branch::when($cid, fn ($q) => $q->where('company_id', $cid));
+        // Sucursal(es) de la caja asignada al personal (para acotar a quien no tiene permiso).
+        $cajaBranchIds = collect();
         $personal = $user->personal;
         if (!$user->is_super_admin && $personal) {
-            $branchIds = \App\Models\CashRegister::where('assigned_personal_id', $personal->id)
+            $cajaBranchIds = \App\Models\CashRegister::where('assigned_personal_id', $personal->id)
                 ->whereNotNull('branch_id')
-                ->pluck('branch_id')->unique();
-            if ($branchIds->isNotEmpty()) {
-                $branchesQuery->whereIn('id', $branchIds);
+                ->pluck('branch_id')->unique()->values();
+        }
+
+        $activeBranch = request('branch');
+
+        if ($canAllBranches) {
+            // Acceso completo: filtro por la sucursal elegida (si la hay).
+            if ($activeBranch && $activeBranch !== 'all') {
+                $query->where('branch_id', $activeBranch);
             }
+        } else {
+            // Sin permiso: forzar el alcance a la(s) sucursal(es) de su caja.
+            if ($cajaBranchIds->isNotEmpty()) {
+                $query->whereIn('branch_id', $cajaBranchIds);
+                // Si es una sola, marcarla como activa para resaltar su tab.
+                $activeBranch = $cajaBranchIds->count() === 1 ? (string) $cajaBranchIds->first() : null;
+            }
+        }
+
+        // Sucursales para los tabs: todas (con permiso) o solo las de la caja.
+        $branchesQuery = Branch::when($cid, fn ($q) => $q->where('company_id', $cid));
+        if (!$canAllBranches && $cajaBranchIds->isNotEmpty()) {
+            $branchesQuery->whereIn('id', $cajaBranchIds);
         }
         $branches = $branchesQuery->orderBy('name')->get(['id', 'name']);
 
         return view('sales.invoices.index', [
-            'sales'        => $query->paginate(15)->withQueryString(),
-            'branches'     => $branches,
-            'activeBranch' => $activeBranch,
+            'sales'          => $query->paginate(15)->withQueryString(),
+            'branches'       => $branches,
+            'activeBranch'   => $activeBranch,
+            'canAllBranches' => $canAllBranches,
         ]);
     }
 

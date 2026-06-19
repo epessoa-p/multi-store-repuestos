@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->prefix('rentals')->name('rentals.')->group(function () {
 
     // ── Dashboard ─────────────────────────────────────────────
-    Route::get('/', [RentalDashboardController::class, 'index'])->name('dashboard')->middleware('check-permission:rentals.view');
+    Route::get('/', [RentalDashboardController::class, 'index'])->name('dashboard')->middleware('check-permission:rentals-dashboard.view');
 
     // ── Calendario ────────────────────────────────────────────
     Route::get('/calendar',      [RentalCalendarController::class, 'index'])->name('calendar')->middleware('check-permission:rentals.view');

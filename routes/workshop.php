@@ -11,7 +11,7 @@ Route::middleware('auth')->group(function () {
 
     // ── Dashboard ─────────────────────────────────────────────
     Route::get('workshop/dashboard', [WorkshopDashboardController::class, 'index'])
-        ->name('workshop.dashboard')->middleware('check-permission:workshop.view');
+        ->name('workshop.dashboard')->middleware('check-permission:workshop-dashboard.view');
 
     // ── Servicios (catálogo) ──────────────────────────────────
     Route::prefix('workshop/services')->name('services.')->group(function () {
