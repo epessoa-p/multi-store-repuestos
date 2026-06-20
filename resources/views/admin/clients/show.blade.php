@@ -209,6 +209,21 @@
         {{-- ── Columna lateral ──────────────────────────────────────── --}}
         <div class="col-lg-4">
 
+            {{-- Puntos de fidelización --}}
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-dashboard.view', auth()->user()->getCurrentCompany()))
+            <div class="card border-0 shadow-sm mb-3" style="border-left:4px solid #7c3aed !important;">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small mb-1"><i class="bi bi-award me-1 text-purple" style="color:#7c3aed;"></i>Puntos de fidelización</div>
+                        <div class="fw-bold fs-4" style="color:#7c3aed;">{{ number_format($client->points_balance ?? 0, 0) }}</div>
+                    </div>
+                    @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-movements.view', auth()->user()->getCurrentCompany()))
+                    <a href="{{ route('loyalty.movements.index', ['client_id' => $client->id]) }}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left-right me-1"></i>Movimientos</a>
+                    @endif
+                </div>
+            </div>
+            @endif
+
             {{-- Detalles (notas + ubicación) --}}
             @if($client->notes || $client->location_link)
             <div class="card border-0 shadow-sm mb-3">

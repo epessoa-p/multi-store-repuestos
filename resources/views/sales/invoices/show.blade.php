@@ -10,7 +10,7 @@
     </div>
 
     {{-- ── HEADER CARD ──────────────────────────────────────────────── --}}
-    <div class="card border-0 shadow-sm mb-4 overflow-hidden no-print-shadow">
+    <div class="card card-soft mb-4 overflow-hidden no-print-shadow">
         <div style="height:6px;background:linear-gradient(90deg,var(--brand-red) 0%,#ff4d4d 50%,transparent 100%);"></div>
         <div class="card-body p-4">
             <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
@@ -96,7 +96,7 @@
         <div class="col-lg-8">
 
             {{-- Items table --}}
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card card-soft cs-indigo mb-4">
                 <div class="card-header bg-white border-bottom py-3 px-4">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-2 text-muted"></i>Productos vendidos</h6>
                 </div>
@@ -188,7 +188,7 @@
 
             {{-- Installments (credit only) --}}
             @if($sale->sale_type === 'credit' && $sale->installments->isNotEmpty())
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card card-soft cs-teal mb-4">
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar2-check me-2 text-muted"></i>Cronograma de cuotas</h6>
                     <span class="badge bg-light text-muted border">{{ $sale->installments->count() }} cuotas</span>
@@ -236,7 +236,7 @@
             @endif
 
             {{-- Payments history --}}
-            <div class="card border-0 shadow-sm">
+            <div class="card card-soft cs-green">
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-2 text-muted"></i>Pagos registrados</h6>
                     <span class="badge bg-light text-muted border">{{ $sale->payments->count() }}</span>
@@ -265,7 +265,7 @@
 
             {{-- Devoluciones --}}
             @if($hasReturns)
-            <div class="card border-0 shadow-sm mt-4">
+            <div class="card card-soft cs-amber mt-4">
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-arrow-return-left me-2 text-muted"></i>Devoluciones</h6>
                     <span class="badge bg-dark text-white">−${{ number_format($totalReturned, 2) }}</span>
@@ -291,7 +291,7 @@
 
         {{-- ── SIDEBAR INFO ────────────────────────────────────────────── --}}
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card card-soft cs-sky mb-4">
                 <div class="card-header bg-white border-bottom py-3 px-4">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2 text-muted"></i>Información</h6>
                 </div>
@@ -320,7 +320,7 @@
             </div>
 
             @if($sale->balance > 0 && $sale->status !== 'cancelled')
-            <div class="card border-0 shadow-sm" style="border-left:4px solid var(--brand-red) !important;">
+            <div class="card card-soft cs-rose">
                 <div class="card-body p-4">
                     <div class="text-muted small mb-1">Saldo pendiente</div>
                     <div class="fw-bold text-danger fs-4">${{ number_format($sale->balance, 2) }}</div>
@@ -337,7 +337,7 @@
 
             {{-- Datos del cliente --}}
             @if($sale->client)
-            <div class="card border-0 shadow-sm mt-4">
+            <div class="card card-soft cs-violet mt-4">
                 <div class="card-header bg-white border-bottom py-3 px-4">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-person-vcard me-2 text-muted"></i>Datos del cliente</h6>
                 </div>
@@ -372,7 +372,7 @@
                 </div>
             </div>
             @else
-            <div class="card border-0 shadow-sm mt-4">
+            <div class="card card-soft mt-4">
                 <div class="card-body p-4 text-center text-muted small">
                     <i class="bi bi-person d-block fs-3 mb-2 opacity-25"></i>
                     Cliente general
@@ -394,6 +394,33 @@
 
 @push('styles')
 <style>
+/* Cards con estilo outline suave y acento de color amigable por sección */
+.card-soft {
+    border: 1.5px solid var(--cs-border, #e6e9f0) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04) !important;
+    transition: box-shadow .18s ease, transform .18s ease;
+}
+.card-soft:hover {
+    box-shadow: 0 8px 24px rgba(16,24,40,.08) !important;
+    transform: translateY(-1px);
+}
+.card-soft > .card-header,
+.card-soft > .card-footer {
+    background: var(--cs-tint, #fff) !important;
+    border-color: var(--cs-border, #eef1f6) !important;
+}
+.card-soft > .card-header h6 i { color: var(--cs-accent, #6c757d) !important; }
+
+/* Variantes de acento (pastel) */
+.cs-indigo { --cs-border:#c7d2fe; --cs-tint:#eef2ff; --cs-accent:#4f46e5; }
+.cs-teal   { --cs-border:#99f6e4; --cs-tint:#f0fdfa; --cs-accent:#0d9488; }
+.cs-green  { --cs-border:#bbf7d0; --cs-tint:#f0fdf4; --cs-accent:#16a34a; }
+.cs-amber  { --cs-border:#fde68a; --cs-tint:#fffbeb; --cs-accent:#d97706; }
+.cs-sky    { --cs-border:#bae6fd; --cs-tint:#f0f9ff; --cs-accent:#0284c7; }
+.cs-violet { --cs-border:#ddd6fe; --cs-tint:#f5f3ff; --cs-accent:#7c3aed; }
+.cs-rose   { --cs-border:#fecdd3; --cs-tint:#fff1f2; --cs-accent:#e11d48; }
+
 @media print {
     .no-print, .no-print * { display: none !important; }
     .app-sidebar, .app-topbar, .btn { display: none !important; }

@@ -64,9 +64,14 @@ class PosController extends Controller
             }
         }
 
+        // Fidelización: ¿el módulo está activo para esta empresa?
+        $loyaltyEnabled = $cid
+            ? (bool) optional(\App\Models\Loyalty\LoyaltySetting::where('company_id', $cid)->first())->enabled
+            : false;
+
         return view('sales.pos.index', compact(
             'session', 'products', 'clients', 'categories', 'motoModels',
-            'warehouseId', 'activeStock', 'warehouses', 'productWhStock'
+            'warehouseId', 'activeStock', 'warehouses', 'productWhStock', 'loyaltyEnabled'
         ));
     }
 

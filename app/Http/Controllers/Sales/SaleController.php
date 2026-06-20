@@ -373,6 +373,9 @@ class SaleController extends Controller
                 }
 
                 $sale->update(['status' => 'cancelled']);
+
+                // Fidelización: revertir los puntos acreditados por la venta
+                app(\App\Services\Loyalty\LoyaltyService::class)->reverse($sale);
             });
 
             return back()->with('success', 'Venta anulada y stock revertido.');

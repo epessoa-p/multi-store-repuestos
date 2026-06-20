@@ -473,6 +473,35 @@
         @endif
 
         @php
+            $canLoyalty = auth()->user()->is_super_admin
+                || auth()->user()->hasPermissionInCompany('loyalty-dashboard.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-rewards.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-redemptions.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-settings.view', $currentCompany);
+        @endphp
+        @if($canLoyalty)
+        <div class="sidebar-section-title mt-4">Fidelización</div>
+        <ul class="nav flex-column gap-1">
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-dashboard.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.dashboard') ? 'active' : '' }}" href="{{ route('loyalty.dashboard') }}"><i class="bi bi-award"></i> Dashboard</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-settings.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.settings.*') ? 'active' : '' }}" href="{{ route('loyalty.settings.edit') }}"><i class="bi bi-gear"></i> Configuración</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-rewards.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.rewards.*') ? 'active' : '' }}" href="{{ route('loyalty.rewards.index') }}"><i class="bi bi-gift"></i> Recompensas</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-redemptions.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.redemptions.*') ? 'active' : '' }}" href="{{ route('loyalty.redemptions.index') }}"><i class="bi bi-bag-check"></i> Canjes</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.movements.*') ? 'active' : '' }}" href="{{ route('loyalty.movements.index') }}"><i class="bi bi-arrow-left-right"></i> Movimientos de Puntos</a></li>
+            @endif
+        </ul>
+        @endif
+
+        @php
             $canPurchases = auth()->user()->is_super_admin
                 || auth()->user()->hasPermissionInCompany('purchases-dashboard.view', $currentCompany)
                 || auth()->user()->hasPermissionInCompany('suppliers.view', $currentCompany)
@@ -829,6 +858,27 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.payments') ? 'active' : '' }}" href="{{ route('rentals.payments') }}"><i class="bi bi-cash-coin me-2"></i>Pagos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.penalties') ? 'active' : '' }}" href="{{ route('rentals.penalties') }}"><i class="bi bi-exclamation-triangle me-2"></i>Penalizaciones</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.history') ? 'active' : '' }}" href="{{ route('rentals.history') }}"><i class="bi bi-clock-history me-2"></i>Historial</a></li>
+            </ul>
+            @endif
+
+            @if($canLoyalty)
+            <div class="sidebar-section-title">Fidelización</div>
+            <ul class="nav flex-column gap-1 mb-3">
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-dashboard.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.dashboard') ? 'active' : '' }}" href="{{ route('loyalty.dashboard') }}"><i class="bi bi-award me-2"></i>Dashboard</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-settings.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.settings.*') ? 'active' : '' }}" href="{{ route('loyalty.settings.edit') }}"><i class="bi bi-gear me-2"></i>Configuración</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-rewards.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.rewards.*') ? 'active' : '' }}" href="{{ route('loyalty.rewards.index') }}"><i class="bi bi-gift me-2"></i>Recompensas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-redemptions.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.redemptions.*') ? 'active' : '' }}" href="{{ route('loyalty.redemptions.index') }}"><i class="bi bi-bag-check me-2"></i>Canjes</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.movements.*') ? 'active' : '' }}" href="{{ route('loyalty.movements.index') }}"><i class="bi bi-arrow-left-right me-2"></i>Movimientos de Puntos</a></li>
+                @endif
             </ul>
             @endif
 

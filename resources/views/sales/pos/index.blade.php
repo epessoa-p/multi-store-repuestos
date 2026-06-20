@@ -77,6 +77,11 @@
             <button type="button" class="btn btn-info text-white btn-sm" data-bs-toggle="modal" data-bs-target="#stockModal">
                 <i class="bi bi-boxes me-1"></i>Stock por almacén
             </button>
+            @if(!empty($loyaltyEnabled) && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty.redeem', auth()->user()->getCurrentCompany())))
+            <button type="button" class="btn btn-warning text-dark btn-sm fw-semibold" onclick="openRedeemModal()">
+                <i class="bi bi-gift me-1"></i>Canjear puntos
+            </button>
+            @endif
             <a href="{{ route('sales.index') }}" class="btn btn-dark btn-sm">
                 <i class="bi bi-list-ul me-1"></i>Ventas
             </a>
@@ -500,6 +505,10 @@
         </div>
     </div>
 </div>
+
+@if(!empty($loyaltyEnabled) && (auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty.redeem', auth()->user()->getCurrentCompany())))
+    @include('loyalty.partials.pos-redeem-modal')
+@endif
 
 @push('styles')
 <style>

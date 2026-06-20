@@ -194,6 +194,9 @@ trait HandlesSaleCreation
 
             $sale->refresh()->recalcPaymentStatus();
 
+            // Fidelización: acreditar puntos por la compra (idempotente; ignora "Cliente general")
+            app(\App\Services\Loyalty\LoyaltyService::class)->award($sale);
+
             return $sale;
         });
     }

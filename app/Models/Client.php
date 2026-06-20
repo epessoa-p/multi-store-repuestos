@@ -23,12 +23,14 @@ class Client extends Model
         'photo',
         'notes',
         'active',
+        'points_balance',
         'created_by',
     ];
 
     protected $casts = [
-        'active'     => 'boolean',
-        'deleted_at' => 'datetime',
+        'active'         => 'boolean',
+        'points_balance' => 'integer',
+        'deleted_at'     => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -75,6 +77,17 @@ class Client extends Model
     public function warranties(): HasMany
     {
         return $this->hasMany(\App\Models\Motos\Warranty::class)->latest('start_date');
+    }
+
+    // ── Fidelización ──────────────────────────────────────────
+    public function pointMovements(): HasMany
+    {
+        return $this->hasMany(\App\Models\Loyalty\LoyaltyPointMovement::class)->latest();
+    }
+
+    public function redemptions(): HasMany
+    {
+        return $this->hasMany(\App\Models\Loyalty\LoyaltyRedemption::class)->latest('redeemed_at');
     }
 
     public function getPhotoUrlAttribute(): ?string
