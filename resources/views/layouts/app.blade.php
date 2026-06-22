@@ -478,6 +478,8 @@
                 || auth()->user()->hasPermissionInCompany('loyalty-rewards.view', $currentCompany)
                 || auth()->user()->hasPermissionInCompany('loyalty-redemptions.view', $currentCompany)
                 || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-campaigns.view', $currentCompany)
+                || auth()->user()->hasPermissionInCompany('loyalty-reports.view', $currentCompany)
                 || auth()->user()->hasPermissionInCompany('loyalty-settings.view', $currentCompany);
         @endphp
         @if($canLoyalty)
@@ -497,6 +499,12 @@
             @endif
             @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany))
             <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.movements.*') ? 'active' : '' }}" href="{{ route('loyalty.movements.index') }}"><i class="bi bi-arrow-left-right"></i> Movimientos de Puntos</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-campaigns.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.campaigns.*') ? 'active' : '' }}" href="{{ route('loyalty.campaigns.index') }}"><i class="bi bi-megaphone"></i> Campañas</a></li>
+            @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-reports.view', $currentCompany))
+            <li class="nav-item"><a class="nav-link app-link {{ request()->routeIs('loyalty.reports.*') ? 'active' : '' }}" href="{{ route('loyalty.reports.index') }}"><i class="bi bi-bar-chart-line"></i> Reportes</a></li>
             @endif
         </ul>
         @endif
@@ -878,6 +886,12 @@
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-movements.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('loyalty.movements.*') ? 'active' : '' }}" href="{{ route('loyalty.movements.index') }}"><i class="bi bi-arrow-left-right me-2"></i>Movimientos de Puntos</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-campaigns.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.campaigns.*') ? 'active' : '' }}" href="{{ route('loyalty.campaigns.index') }}"><i class="bi bi-megaphone me-2"></i>Campañas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('loyalty-reports.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('loyalty.reports.*') ? 'active' : '' }}" href="{{ route('loyalty.reports.index') }}"><i class="bi bi-bar-chart-line me-2"></i>Reportes</a></li>
                 @endif
             </ul>
             @endif

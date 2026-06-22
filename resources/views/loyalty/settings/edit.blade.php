@@ -76,6 +76,14 @@
                                 <input type="text" name="points_label" class="form-control" maxlength="50"
                                        value="{{ old('points_label', $settings->points_label) }}" placeholder="puntos">
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Vencimiento <span class="text-muted">(meses; vacío = no vence)</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="expiration_months" class="form-control" min="0" max="120" step="1"
+                                           value="{{ old('expiration_months', $settings->expiration_months) }}" placeholder="No vence">
+                                    <span class="input-group-text bg-light px-2">meses</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

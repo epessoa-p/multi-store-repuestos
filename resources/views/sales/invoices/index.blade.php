@@ -5,7 +5,14 @@
 
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
         <div>
-            <h1 class="mb-1 fw-bold fs-5"><i class="bi bi-receipt me-2 text-danger"></i>Ventas</h1>
+            <h1 class="mb-1 fw-bold fs-5">
+                <i class="bi bi-receipt me-2 text-danger"></i>Ventas
+                @unless($canAllSales)
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle align-middle ms-1" style="font-size:.6rem;">
+                    <i class="bi bi-person-check me-1"></i>Solo mis ventas
+                </span>
+                @endunless
+            </h1>
             <p class="text-muted mb-0 small">Registro de ventas realizadas.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">

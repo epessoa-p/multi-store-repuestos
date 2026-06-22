@@ -136,6 +136,10 @@ class MotoSaleController extends Controller
                 }
 
                 $sale->refresh()->recalcPaymentStatus();
+
+                // Fidelización: acreditar puntos por la venta de moto
+                app(\App\Services\Loyalty\LoyaltyService::class)->award($sale);
+
                 return $sale;
             });
 

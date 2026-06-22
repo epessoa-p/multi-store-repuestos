@@ -42,6 +42,13 @@ class SaleController extends Controller
             }
         }
 
+        // ¿Puede ver TODAS las ventas? Sin el permiso, solo ve las que registró.
+        $canAllSales = $user->is_super_admin
+            || $user->hasPermissionInCompany('sales.view-all-records', $user->getCurrentCompany());
+        if (!$canAllSales) {
+            $query->where('created_by', $user->id);
+        }
+
         // ¿Puede ver todas las sucursales? (permiso o super admin)
         $canAllBranches = $user->is_super_admin
             || $user->hasPermissionInCompany('sales.view-all-branches', $user->getCurrentCompany());
@@ -83,6 +90,7 @@ class SaleController extends Controller
             'branches'       => $branches,
             'activeBranch'   => $activeBranch,
             'canAllBranches' => $canAllBranches,
+            'canAllSales'    => $canAllSales,
         ]);
     }
 

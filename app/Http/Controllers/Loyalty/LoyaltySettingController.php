@@ -30,16 +30,18 @@ class LoyaltySettingController extends Controller
             'rounding'     => 'required|in:down,nearest,up',
             'min_purchase' => 'nullable|numeric|min:0',
             'points_label' => 'nullable|string|max:50',
+            'expiration_months' => 'nullable|integer|min:0|max:120',
         ]);
 
         $settings = LoyaltySetting::forCompany($cid);
         $settings->update([
-            'enabled'      => (bool) $request->boolean('enabled'),
-            'earn_amount'  => $data['earn_amount'],
-            'earn_points'  => $data['earn_points'],
-            'rounding'     => $data['rounding'],
-            'min_purchase' => $data['min_purchase'] ?? 0,
-            'points_label' => $data['points_label'] ?: 'puntos',
+            'enabled'           => (bool) $request->boolean('enabled'),
+            'earn_amount'       => $data['earn_amount'],
+            'earn_points'       => $data['earn_points'],
+            'rounding'          => $data['rounding'],
+            'min_purchase'      => $data['min_purchase'] ?? 0,
+            'points_label'      => $data['points_label'] ?: 'puntos',
+            'expiration_months' => $data['expiration_months'] ?: null,
         ]);
 
         return back()->with('success', 'Configuración de fidelización guardada.');

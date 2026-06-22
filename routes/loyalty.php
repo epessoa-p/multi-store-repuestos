@@ -1,11 +1,17 @@
 <?php
 
+use App\Http\Controllers\Loyalty\LoyaltyCampaignController;
+use App\Http\Controllers\Loyalty\LoyaltyCatalogController;
 use App\Http\Controllers\Loyalty\LoyaltyDashboardController;
 use App\Http\Controllers\Loyalty\LoyaltyMovementController;
 use App\Http\Controllers\Loyalty\LoyaltyRedemptionController;
+use App\Http\Controllers\Loyalty\LoyaltyReportController;
 use App\Http\Controllers\Loyalty\LoyaltyRewardController;
 use App\Http\Controllers\Loyalty\LoyaltySettingController;
 use Illuminate\Support\Facades\Route;
+
+// ── Catálogo público de recompensas (SIN autenticación) ───────
+Route::get('/catalogo/{token}', [LoyaltyCatalogController::class, 'public'])->name('loyalty.catalog.public');
 
 Route::middleware('auth')->prefix('loyalty')->name('loyalty.')->group(function () {
 
@@ -46,4 +52,22 @@ Route::middleware('auth')->prefix('loyalty')->name('loyalty.')->group(function (
     // ── Movimientos de puntos ─────────────────────────────────
     Route::get('/movements', [LoyaltyMovementController::class, 'index'])->name('movements.index')
         ->middleware('check-permission:loyalty-movements.view');
+
+    // ── Campañas (multiplicadores temporales) ─────────────────
+    Route::get('/campaigns',                  [LoyaltyCampaignController::class, 'index'])->name('campaigns.index')
+        ->middleware('check-permission:loyalty-campaigns.view');
+    Route::get('/campaigns/create',           [LoyaltyCampaignController::class, 'create'])->name('campaigns.create')
+        ->middleware('check-permission:loyalty-campaigns.create');
+    Route::post('/campaigns',                 [LoyaltyCampaignController::class, 'store'])->name('campaigns.store')
+        ->middleware('check-permission:loyalty-campaigns.create');
+    Route::get('/campaigns/{campaign}/edit',  [LoyaltyCampaignController::class, 'edit'])->name('campaigns.edit')
+        ->middleware('check-permission:loyalty-campaigns.edit');
+    Route::put('/campaigns/{campaign}',       [LoyaltyCampaignController::class, 'update'])->name('campaigns.update')
+        ->middleware('check-permission:loyalty-campaigns.edit');
+    Route::delete('/campaigns/{campaign}',    [LoyaltyCampaignController::class, 'destroy'])->name('campaigns.destroy')
+        ->middleware('check-permission:loyalty-campaigns.delete');
+
+    // ── Reportes ──────────────────────────────────────────────
+    Route::get('/reports', [LoyaltyReportController::class, 'index'])->name('reports.index')
+        ->middleware('check-permission:loyalty-reports.view');
 });

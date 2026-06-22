@@ -20,7 +20,15 @@ class LoyaltyRewardController extends Controller
             ->orderBy('points_cost')
             ->paginate(20);
 
-        return view('loyalty.rewards.index', compact('rewards'));
+        // Link público del catálogo (solo cuando hay empresa seleccionada)
+        $catalogUrl = null;
+        $companyId = auth()->user()->getCurrentCompany()?->id;
+        if ($companyId) {
+            $token = \App\Models\Loyalty\LoyaltySetting::forCompany($companyId)->ensurePublicToken();
+            $catalogUrl = route('loyalty.catalog.public', $token);
+        }
+
+        return view('loyalty.rewards.index', compact('rewards', 'catalogUrl'));
     }
 
     public function create()

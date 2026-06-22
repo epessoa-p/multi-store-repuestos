@@ -5,12 +5,16 @@ namespace App\Services\Loyalty;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\InventoryMovement;
+use App\Models\Loyalty\LoyaltyCampaign;
 use App\Models\Loyalty\LoyaltyPointMovement;
 use App\Models\Loyalty\LoyaltyRedemption;
 use App\Models\Loyalty\LoyaltyReward;
 use App\Models\Loyalty\LoyaltySetting;
 use App\Models\Product;
 use App\Models\Sales\Sale;
+use App\Models\Workshop\WorkOrder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -32,90 +36,144 @@ class LoyaltyService
         return (int) ($blocks * $s->earn_points);
     }
 
-    /**
-     * Acredita puntos por una venta (idempotente). Solo si el módulo está
-     * habilitado, hay cliente real y el total alcanza el mínimo configurado.
-     */
+    /** Multiplicador de la campaña activa para una fecha (1.0 si no hay). */
+    public function activeCampaignMultiplier(int $companyId, $date = null): float
+    {
+        $d = $date ? Carbon::parse($date)->toDateString() : now()->toDateString();
+        $max = LoyaltyCampaign::where('company_id', $companyId)
+            ->where('active', true)
+            ->whereDate('starts_at', '<=', $d)
+            ->whereDate('ends_at', '>=', $d)
+            ->max('multiplier');
+
+        return $max ? (float) $max : 1.0;
+    }
+
+    /** Acredita puntos por una venta (idempotente). */
     public function award(Sale $sale): void
     {
-        if (!$sale->client_id) {
+        $this->awardForSource($sale->company_id, $sale->client_id, (float) $sale->total, $sale, $sale->code, 'Compra', $sale->sale_date);
+    }
+
+    /** Acredita puntos por una orden de taller (idempotente). */
+    public function awardWorkOrder(WorkOrder $wo): void
+    {
+        $this->awardForSource($wo->company_id, $wo->client_id, (float) $wo->total, $wo, $wo->code, 'Taller', $wo->delivered_at ?? now());
+    }
+
+    /**
+     * Acredita puntos por una fuente cualquiera (venta, orden de taller, etc.).
+     * Aplica multiplicador de campaña y fecha de expiración. Idempotente por fuente.
+     */
+    public function awardForSource(int $companyId, ?int $clientId, float $total, Model $source, string $code, ?string $label = null, $date = null): void
+    {
+        if (!$clientId) {
             return;
         }
 
-        $settings = LoyaltySetting::where('company_id', $sale->company_id)->first();
+        $settings = LoyaltySetting::where('company_id', $companyId)->first();
         if (!$settings || !$settings->enabled) {
             return;
         }
-        if ((float) $sale->total < (float) $settings->min_purchase) {
+        if ($total < (float) $settings->min_purchase) {
             return;
         }
 
-        // Idempotencia: no acreditar dos veces la misma venta
-        $already = LoyaltyPointMovement::where('source_type', Sale::class)
-            ->where('source_id', $sale->id)
+        // Idempotencia: no acreditar dos veces la misma fuente
+        $already = LoyaltyPointMovement::where('source_type', $source->getMorphClass())
+            ->where('source_id', $source->getKey())
             ->where('type', 'earn')
             ->exists();
         if ($already) {
             return;
         }
 
-        $points = $this->pointsForAmount((float) $sale->total, $settings);
+        $base       = $this->pointsForAmount($total, $settings);
+        $multiplier = $this->activeCampaignMultiplier($companyId, $date);
+        $points     = (int) round($base * $multiplier);
         if ($points <= 0) {
             return;
         }
 
-        DB::transaction(function () use ($sale, $points) {
+        $expiresAt = $settings->expiration_months
+            ? now()->addMonths((int) $settings->expiration_months)->endOfDay()
+            : null;
+
+        $desc = trim(($label ? $label . ' ' : '') . $code);
+        if ($multiplier > 1) {
+            $desc .= ' (campaña x' . rtrim(rtrim(number_format($multiplier, 2), '0'), '.') . ')';
+        }
+
+        DB::transaction(function () use ($companyId, $clientId, $points, $source, $desc, $expiresAt) {
             LoyaltyPointMovement::create([
-                'company_id'  => $sale->company_id,
-                'client_id'   => $sale->client_id,
-                'type'        => 'earn',
-                'points'      => $points,
-                'source_type' => Sale::class,
-                'source_id'   => $sale->id,
-                'description' => 'Compra ' . $sale->code,
-                'user_id'     => auth()->id(),
+                'company_id'       => $companyId,
+                'client_id'        => $clientId,
+                'type'             => 'earn',
+                'points'           => $points,
+                'points_remaining' => $points,
+                'expires_at'       => $expiresAt,
+                'source_type'      => $source->getMorphClass(),
+                'source_id'        => $source->getKey(),
+                'description'      => $desc,
+                'user_id'          => auth()->id(),
             ]);
-            Client::where('id', $sale->client_id)->increment('points_balance', $points);
+            Client::where('id', $clientId)->increment('points_balance', $points);
         });
     }
 
     /** Revierte los puntos acreditados por una venta (al anularla). */
     public function reverse(Sale $sale): void
     {
-        $earned = LoyaltyPointMovement::where('source_type', Sale::class)
-            ->where('source_id', $sale->id)
-            ->where('type', 'earn')
-            ->sum('points');
+        $this->reverseForSource($sale->getMorphClass(), $sale->id, $sale->company_id, $sale->client_id, $sale->code);
+    }
 
-        if ($earned <= 0) {
+    /** Revierte los puntos acreditados por una orden de taller. */
+    public function reverseWorkOrder(WorkOrder $wo): void
+    {
+        $this->reverseForSource($wo->getMorphClass(), $wo->id, $wo->company_id, $wo->client_id, $wo->code);
+    }
+
+    /**
+     * Revierte el saldo aún disponible de los lotes acreditados por una fuente.
+     * Solo descuenta la parte NO gastada de esos lotes (lo ya canjeado no se reclama).
+     */
+    public function reverseForSource(string $sourceType, int $sourceId, int $companyId, ?int $clientId, string $code): void
+    {
+        if (!$clientId) {
             return;
         }
 
-        DB::transaction(function () use ($sale, $earned) {
-            $client = Client::find($sale->client_id);
-            // No dejar el saldo en negativo
-            $deduct = min((int) $earned, (int) ($client->points_balance ?? 0));
+        $lots = LoyaltyPointMovement::where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->where('type', 'earn')
+            ->get();
 
+        $remaining = (int) $lots->sum(fn ($l) => (int) ($l->points_remaining ?? 0));
+        if ($remaining <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($lots, $companyId, $clientId, $remaining, $code) {
+            foreach ($lots as $lot) {
+                if ((int) $lot->points_remaining > 0) {
+                    $lot->update(['points_remaining' => 0]);
+                }
+            }
             LoyaltyPointMovement::create([
-                'company_id'  => $sale->company_id,
-                'client_id'   => $sale->client_id,
+                'company_id'  => $companyId,
+                'client_id'   => $clientId,
                 'type'        => 'adjust',
-                'points'      => -$deduct,
-                'source_type' => Sale::class,
-                'source_id'   => $sale->id,
-                'description' => 'Reverso por anulación ' . $sale->code,
+                'points'      => -$remaining,
+                'description' => 'Reverso por anulación ' . $code,
                 'user_id'     => auth()->id(),
             ]);
-            if ($client && $deduct > 0) {
-                $client->decrement('points_balance', $deduct);
-            }
+            Client::where('id', $clientId)->decrement('points_balance', $remaining);
         });
     }
 
     /**
-     * Canjea una recompensa para un cliente: valida saldo y stock, descuenta
-     * puntos, registra el canje y (si la recompensa apunta a un producto)
-     * descuenta inventario.
+     * Canjea una recompensa: valida saldo/stock, descuenta puntos (consumiendo
+     * lotes FIFO), registra el canje y descuenta inventario si aplica.
      *
      * @throws ValidationException
      */
@@ -147,15 +205,15 @@ class LoyaltyService
                 'client_id'   => $client->id,
                 'type'        => 'redeem',
                 'points'      => -1 * (int) $reward->points_cost,
-                'source_type' => LoyaltyRedemption::class,
+                'source_type' => $redemption->getMorphClass(),
                 'source_id'   => $redemption->id,
                 'description' => 'Canje: ' . $reward->name,
                 'user_id'     => auth()->id(),
             ]);
 
             $client->decrement('points_balance', (int) $reward->points_cost);
+            $this->consumeLots($client->id, (int) $reward->points_cost);
 
-            // Descontar stock de la recompensa (stock propio) o del producto enlazado
             if ($reward->stock !== null) {
                 $reward->decrement('stock');
             }
@@ -165,6 +223,60 @@ class LoyaltyService
 
             return $redemption;
         });
+    }
+
+    /**
+     * Expira los lotes vencidos con saldo disponible. Devuelve el total de
+     * puntos expirados. Pensado para ejecutarse desde un comando programado.
+     */
+    public function expirePoints(): int
+    {
+        $lots = LoyaltyPointMovement::where('type', 'earn')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->where('points_remaining', '>', 0)
+            ->get();
+
+        $totalExpired = 0;
+        foreach ($lots as $lot) {
+            $rem = (int) $lot->points_remaining;
+            DB::transaction(function () use ($lot, $rem) {
+                LoyaltyPointMovement::create([
+                    'company_id'  => $lot->company_id,
+                    'client_id'   => $lot->client_id,
+                    'type'        => 'expire',
+                    'points'      => -$rem,
+                    'description' => 'Vencimiento de puntos',
+                    'user_id'     => null,
+                ]);
+                Client::where('id', $lot->client_id)->decrement('points_balance', $rem);
+                $lot->update(['points_remaining' => 0]);
+            });
+            $totalExpired += $rem;
+        }
+
+        return $totalExpired;
+    }
+
+    /** Consume puntos de los lotes 'earn' del cliente, del más antiguo al más nuevo (FIFO). */
+    private function consumeLots(int $clientId, int $points): void
+    {
+        $remaining = $points;
+        $lots = LoyaltyPointMovement::where('client_id', $clientId)
+            ->where('type', 'earn')
+            ->where('points_remaining', '>', 0)
+            ->orderBy('created_at')->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($lots as $lot) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $take = min($remaining, (int) $lot->points_remaining);
+            $lot->decrement('points_remaining', $take);
+            $remaining -= $take;
+        }
     }
 
     /** Descuenta inventario del producto enlazado a la recompensa. */

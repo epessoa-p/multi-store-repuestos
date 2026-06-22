@@ -110,6 +110,9 @@ trait HandlesWorkOrderCharge
             }
 
             $wo->refresh()->recalcPaymentStatus();
+
+            // Fidelización: acreditar puntos por la orden de taller entregada
+            app(\App\Services\Loyalty\LoyaltyService::class)->awardWorkOrder($wo);
         });
     }
 
