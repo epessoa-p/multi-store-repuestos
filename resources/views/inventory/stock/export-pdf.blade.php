@@ -1,81 +1,63 @@
+@php
+    // dompdf rinde mejor con la imagen embebida en base64 que con una URL/ruta.
+    $logoPath = public_path('images/logo_blanco.jpeg');
+    $logoData = is_file($logoPath)
+        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoPath))
+        : null;
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Inventario — {{ $companyName }}</title>
     <style>
+        @page { margin: 24px 28px; }
         * { box-sizing: border-box; }
         body {
-            font-family: "Segoe UI", Arial, sans-serif;
+            font-family: "DejaVu Sans", Arial, sans-serif;
             color: #1a1a1a;
             margin: 0;
-            padding: 24px 28px;
-            font-size: 12px;
+            font-size: 11px;
         }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            border-bottom: 3px solid #e10600;
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .header img { height: 70px; width: auto; }
-        .header .title { flex: 1; }
-        .header h1 { margin: 0; font-size: 18px; }
-        .header .meta { color: #666; font-size: 11px; margin-top: 2px; }
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
+        /* Header como tabla (dompdf no soporta flexbox) */
+        .header { width: 100%; border-bottom: 3px solid #e10600; padding-bottom: 10px; margin-bottom: 14px; }
+        .header td { vertical-align: middle; }
+        .header img { height: 64px; width: auto; }
+        .header .logo-cell { width: 80px; }
+        .header h1 { margin: 0; font-size: 17px; }
+        .header .meta { color: #666; font-size: 10px; margin-top: 3px; }
+        table.data { width: 100%; border-collapse: collapse; }
+        table.data thead th {
             background: #0a0a0a;
             color: #fff;
             text-align: left;
-            padding: 7px 9px;
-            font-size: 11px;
+            padding: 6px 8px;
+            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: .03em;
         }
-        thead th.num { text-align: right; }
-        tbody td { padding: 6px 9px; border-bottom: 1px solid #eee; }
-        tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        tbody tr:nth-child(even) { background: #fafafa; }
-        tfoot td {
-            padding: 8px 9px;
-            border-top: 2px solid #0a0a0a;
-            font-weight: bold;
-        }
-        tfoot td.num { text-align: right; }
-        .code { color: #555; font-family: "Consolas", monospace; }
-        .print-bar {
-            position: fixed; top: 12px; right: 16px;
-        }
-        .print-bar button {
-            background: #e10600; color: #fff; border: 0;
-            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
-        }
-        @media print {
-            .print-bar { display: none; }
-            body { padding: 0; }
-            thead { display: table-header-group; }
-        }
+        table.data thead th.num { text-align: right; }
+        table.data tbody td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+        table.data tbody td.num { text-align: right; }
+        table.data tbody tr:nth-child(even) { background: #fafafa; }
+        table.data tfoot td { padding: 7px 8px; border-top: 2px solid #0a0a0a; font-weight: bold; }
+        table.data tfoot td.num { text-align: right; }
+        .code { color: #555; font-family: "DejaVu Sans Mono", monospace; }
     </style>
 </head>
 <body>
-    <div class="print-bar">
-        <button onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
-    </div>
+    <table class="header">
+        <tr>
+            @if($logoData)
+            <td class="logo-cell"><img src="{{ $logoData }}" alt="logo"></td>
+            @endif
+            <td>
+                <h1>{{ $companyName }} — Inventario</h1>
+                <div class="meta">Almacén: {{ $warehouseLabel }} &middot; Generado: {{ $generatedAt }}</div>
+            </td>
+        </tr>
+    </table>
 
-    <div class="header">
-        @if(file_exists(public_path('images/logo_blanco.jpeg')))
-        <img src="{{ asset('images/logo_blanco.jpeg') }}" alt="{{ $companyName }}">
-        @endif
-        <div class="title">
-            <h1>{{ $companyName }} — Inventario</h1>
-            <div class="meta">Almacén: {{ $warehouseLabel }} · Generado: {{ $generatedAt }}</div>
-        </div>
-    </div>
-
-    <table>
+    <table class="data">
         <thead>
             <tr>
                 <th>Producto</th>
@@ -107,10 +89,5 @@
         </tfoot>
         @endif
     </table>
-
-    <script>
-        // Abrir el diálogo de impresión automáticamente al cargar.
-        window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 350); });
-    </script>
 </body>
 </html>

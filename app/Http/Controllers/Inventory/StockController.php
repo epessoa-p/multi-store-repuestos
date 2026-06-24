@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Inventory\ProductBrand;
 use App\Models\Inventory\ProductCategory;
 use App\Models\InventoryMovement;
@@ -261,9 +262,15 @@ class StockController extends Controller
     /** Vista imprimible del inventario para guardar como PDF (con logo). */
     public function exportPdf(Request $request)
     {
-        return view('inventory.stock.export-pdf', array_merge($this->stockExportData($request), [
+        $data = array_merge($this->stockExportData($request), [
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]));
+        ]);
+
+        $pdf = Pdf::loadView('inventory.stock.export-pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->setOption(['isRemoteEnabled' => true]);
+
+        return $pdf->download('inventario_' . now()->format('YmdHis') . '.pdf');
     }
 
     /** Vista de migración de inventario */
