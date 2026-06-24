@@ -42,6 +42,18 @@ class SaleController extends Controller
             }
         }
 
+        // Filtro por fecha: por defecto el día actual (hora Bolivia).
+        // Si los campos llegan vacíos explícitamente, no se filtra (ver todas).
+        $today    = now()->toDateString();
+        $dateFrom = request()->has('date_from') ? request('date_from') : $today;
+        $dateTo   = request()->has('date_to')   ? request('date_to')   : $today;
+        if ($dateFrom) {
+            $query->whereDate('sale_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('sale_date', '<=', $dateTo);
+        }
+
         // ¿Puede ver TODAS las ventas? Sin el permiso, solo ve las que registró.
         $canAllSales = $user->is_super_admin
             || $user->hasPermissionInCompany('sales.view-all-records', $user->getCurrentCompany());
@@ -91,6 +103,9 @@ class SaleController extends Controller
             'activeBranch'   => $activeBranch,
             'canAllBranches' => $canAllBranches,
             'canAllSales'    => $canAllSales,
+            'dateFrom'       => $dateFrom,
+            'dateTo'         => $dateTo,
+            'today'          => $today,
         ]);
     }
 

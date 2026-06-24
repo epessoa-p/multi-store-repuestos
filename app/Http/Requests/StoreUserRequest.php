@@ -9,7 +9,22 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('users.create', auth()->user()->getCurrentCompany());
+        $user    = auth()->user();
+        $company = $user->getCurrentCompany();
+        // Para update (ruta tiene {user}) se acepta users.edit; para store, users.create.
+        $isEdit  = (bool) $this->route('user');
+        return $user->is_super_admin
+            || $user->hasPermissionInCompany('users.create', $company)
+            || ($isEdit && $user->hasPermissionInCompany('users.edit', $company));
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // Cuando se edita y se dejan vacíos los campos de contraseña,
+        // normalizamos ambos a null para que `confirmed` no falle (null === null).
+        if ($this->route('user') && empty($this->input('password'))) {
+            $this->merge(['password' => null, 'password_confirmation' => null]);
+        }
     }
 
     public function rules(): array
@@ -24,7 +39,8 @@ class StoreUserRequest extends FormRequest
                 'regex:/^\S+$/',
                 Rule::unique('users', 'name')->ignore($userId),
             ],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            // En edición el email viene como readonly (o puede estar ausente): se valida solo si está presente.
+            'email' => [$userId ? 'sometimes' : 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'phone' => 'nullable|string|max:20',
             'is_super_admin' => 'sometimes|boolean',

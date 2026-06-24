@@ -158,19 +158,30 @@ class PersonalController extends Controller
             ? (int) $request->input('company_id', $personal->company_id)
             : (int) $personal->company_id;
 
+        // Normalizar contraseña vacía: evita que `confirmed` falle por null !== ""
+        if (empty($request->input('password'))) {
+            $request->merge(['password' => null, 'password_confirmation' => null]);
+        }
+
         try {
             $validated = $request->validate([
                 'company_id' => ['nullable', 'exists:companies,id'],
-                'cargo_id' => ['required', 'exists:cargos,id'],
-                'full_name' => ['required', 'string', 'max:255'],
-                'id_number' => ['nullable', 'string', 'max:50'],
-                'phone' => ['nullable', 'string', 'max:30'],
-                'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $personal->user_id],
-                'address' => ['nullable', 'string', 'max:255'],
-                'hire_date' => ['nullable', 'date'],
-                'notes' => ['nullable', 'string'],
-                'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-                'active' => ['nullable', 'boolean'],
+                'cargo_id'   => ['required', 'exists:cargos,id'],
+                'full_name'  => ['required', 'string', 'max:255'],
+                'id_number'  => ['nullable', 'string', 'max:50'],
+                'phone'      => ['nullable', 'string', 'max:30'],
+                'username'   => ['required', 'string', 'min:3', 'max:255', 'regex:/^\S+$/', \Illuminate\Validation\Rule::unique('users', 'name')->ignore($personal->user_id)],
+                'email'      => ['required', 'email', 'max:255', 'unique:users,email,' . $personal->user_id],
+                'address'    => ['nullable', 'string', 'max:255'],
+                'hire_date'  => ['nullable', 'date'],
+                'notes'      => ['nullable', 'string'],
+                'password'   => ['nullable', 'string', 'min:8', 'confirmed'],
+                'active'     => ['nullable', 'boolean'],
+            ], [
+                'username.required' => 'El nombre de usuario es requerido.',
+                'username.regex'    => 'El nombre de usuario no puede contener espacios.',
+                'username.unique'   => 'Este nombre de usuario ya está en uso.',
+                'username.min'      => 'El nombre de usuario debe tener al menos 3 caracteres.',
             ]);
 
             $cargo = Cargo::findOrFail($validated['cargo_id']);
@@ -182,8 +193,9 @@ class PersonalController extends Controller
                 $user = $personal->user;
 
                 $userData = [
-                    'email' => $validated['email'],
-                    'phone' => $validated['phone'] ?? null,
+                    'name'   => $validated['username'],
+                    'email'  => $validated['email'],
+                    'phone'  => $validated['phone'] ?? null,
                     'active' => $request->boolean('active', false),
                 ];
 

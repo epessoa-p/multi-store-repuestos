@@ -20,15 +20,24 @@ class MotoSaleController extends Controller
     /** Ventas de motos (lista) */
     public function index()
     {
-        $cid = auth()->user()->is_super_admin ? null : auth()->user()->getCurrentCompany()?->id;
+        $user = auth()->user();
+        $cid  = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
-        $sales = Sale::with(['client', 'motoUnit.model.brand'])
+        $query = Sale::with(['client', 'motoUnit.model.brand'])
             ->where('sale_category', 'moto')
             ->when($cid, fn ($q) => $q->where('company_id', $cid))
-            ->latest()
-            ->paginate(15);
+            ->latest();
 
-        return view('motos.sales.index', compact('sales'));
+        // ¿Puede ver TODAS las ventas de motos? Sin el permiso, solo las que registró.
+        $canAllRecords = $user->is_super_admin
+            || $user->hasPermissionInCompany('moto-sales.view-all-records', $user->getCurrentCompany());
+        if (!$canAllRecords) {
+            $query->where('created_by', $user->id);
+        }
+
+        $sales = $query->paginate(15);
+
+        return view('motos.sales.index', compact('sales', 'canAllRecords'));
     }
 
     public function create()

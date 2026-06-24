@@ -96,6 +96,17 @@ trait HandlesSaleCreation
             $interest = (float) ($data['interest'] ?? 0);
             $total    = max(0, $subtotal - $discount + $tax + $interest);
 
+            // Fecha/hora de la venta: si llega solo una fecha (sin hora) se le
+            // adjunta la hora actual; si no llega nada, se usa el momento exacto.
+            $saleDate = now();
+            if (!empty($data['sale_date'])) {
+                $parsed = \Illuminate\Support\Carbon::parse($data['sale_date']);
+                if ($parsed->format('H:i:s') === '00:00:00') {
+                    $parsed->setTimeFrom(now());
+                }
+                $saleDate = $parsed;
+            }
+
             // 2. Crear la venta
             $sale = Sale::create([
                 'company_id'               => $companyId,
@@ -107,7 +118,7 @@ trait HandlesSaleCreation
                 'sale_category'            => $data['sale_category'] ?? 'producto',
                 'payment_plan_id'          => $data['payment_plan_id'] ?? null,
                 'credit_application_id'    => $data['credit_application_id'] ?? null,
-                'sale_date'                => $data['sale_date'] ?? now()->toDateString(),
+                'sale_date'                => $saleDate,
                 'subtotal'                 => $subtotal,
                 'discount'                 => $discount,
                 'tax'                      => $tax,

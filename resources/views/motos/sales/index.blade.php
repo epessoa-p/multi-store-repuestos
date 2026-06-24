@@ -5,7 +5,11 @@
 
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
         <div>
-            <h1 class="mb-1 fw-bold fs-4"><i class="bi bi-cart-check me-2 text-danger"></i>Ventas de Motos</h1>
+            <h1 class="mb-1 fw-bold fs-4"><i class="bi bi-cart-check me-2 text-danger"></i>Ventas de Motos
+                @unless($canAllRecords)
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle align-middle ms-1" style="font-size:.6rem;"><i class="bi bi-person-check me-1"></i>Solo las mías</span>
+                @endunless
+            </h1>
             <p class="text-muted mb-0 small">Registro de ventas de unidades — contado y crédito.</p>
         </div>
         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('moto-sales.create', auth()->user()->getCurrentCompany()))

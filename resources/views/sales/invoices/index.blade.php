@@ -56,6 +56,10 @@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-2">
             <form method="GET" class="d-flex flex-wrap gap-2 align-items-center filter-zone">
+                {{-- Preservar los filtros de tipo enlace al enviar el filtro de fecha --}}
+                @foreach(['sale_type', 'payment_status', 'returns', 'branch'] as $keep)
+                    @if(request($keep))<input type="hidden" name="{{ $keep }}" value="{{ request($keep) }}">@endif
+                @endforeach
                 <div class="d-flex gap-1 flex-wrap align-items-center">
                     <span class="text-muted small me-1">Tipo:</span>
                     <a href="{{ route('sales.index', array_merge(request()->except('sale_type'), [])) }}"
@@ -96,6 +100,17 @@
                         {{ $lbl }}
                     </a>
                     @endforeach
+                </div>
+                <div class="d-flex gap-1 flex-wrap align-items-center ms-2">
+                    <span class="text-muted small me-1">Fecha:</span>
+                    <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-control form-control-sm" style="width:auto;" aria-label="Desde">
+                    <span class="text-muted small">a</span>
+                    <input type="date" name="date_to" value="{{ $dateTo }}" class="form-control form-control-sm" style="width:auto;" aria-label="Hasta">
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+                    <a href="{{ route('sales.index', array_merge(request()->except(['date_from', 'date_to']), ['date_from' => $today, 'date_to' => $today])) }}"
+                       class="btn btn-sm btn-light border" title="Ver solo hoy">Hoy</a>
+                    <a href="{{ route('sales.index', array_merge(request()->except(['date_from', 'date_to']), ['date_from' => '', 'date_to' => ''])) }}"
+                       class="btn btn-sm btn-light border" title="Quitar filtro de fecha">Todas</a>
                 </div>
             </form>
         </div>
@@ -138,7 +153,10 @@
                                     {{ $sale->sale_type_label }}
                                 </span>
                             </td>
-                            <td class="py-1 small text-muted">{{ $sale->sale_date->format('d/m/Y') }}</td>
+                            <td class="py-1 small text-muted">
+                                {{ $sale->sale_date->format('d/m/Y') }}
+                                <span class="d-block text-muted" style="font-size:.7rem;"><i class="bi bi-clock me-1"></i>{{ $sale->sale_date->format('H:i') }}</span>
+                            </td>
                             <td class="py-1 text-end fw-semibold">${{ number_format($sale->total, 2) }}</td>
                             <td class="py-1 text-end small text-success">${{ number_format($sale->paid_amount, 2) }}</td>
                             <td class="py-1 text-end fw-semibold {{ $sale->balance > 0 ? 'text-danger' : 'text-muted' }}">${{ number_format($sale->balance, 2) }}</td>

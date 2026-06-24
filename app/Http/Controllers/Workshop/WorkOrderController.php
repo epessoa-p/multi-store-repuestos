@@ -25,10 +25,18 @@ class WorkOrderController extends Controller
     {
         $cid = $this->companyScope();
 
+        $user = auth()->user();
         $query = WorkOrder::with(['client', 'vehicle', 'mechanic'])
             ->when($cid, fn ($q) => $q->where('company_id', $cid))
             ->whereNotIn('status', ['entregada', 'anulada'])
             ->latest();
+
+        // ¿Puede ver TODAS las órdenes? Sin el permiso, solo las que registró.
+        $canAllRecords = $user->is_super_admin
+            || $user->hasPermissionInCompany('workshop.view-all-records', $user->getCurrentCompany());
+        if (!$canAllRecords) {
+            $query->where('created_by', $user->id);
+        }
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -39,7 +47,11 @@ class WorkOrderController extends Controller
 
         $mechanics = Mechanic::when($cid, fn ($q) => $q->where('company_id', $cid))->where('active', true)->orderBy('name')->get();
 
-        return view('workshop.orders.index', ['orders' => $query->paginate(15)->withQueryString(), 'mechanics' => $mechanics]);
+        return view('workshop.orders.index', [
+            'orders'        => $query->paginate(15)->withQueryString(),
+            'mechanics'     => $mechanics,
+            'canAllRecords' => $canAllRecords,
+        ]);
     }
 
     // ── Recepción (alta de OT) ────────────────────────────────
