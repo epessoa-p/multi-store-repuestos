@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class StockController extends Controller
@@ -141,6 +144,126 @@ class StockController extends Controller
         (new Xlsx($spreadsheet))->save($tmp);
 
         return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Reúne las filas del inventario para exportar (respeta el almacén activo).
+     * Columnas: producto, código, precio, costo, cantidad disponible.
+     */
+    private function stockExportData(Request $request): array
+    {
+        $user = auth()->user();
+        $cid  = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
+
+        $warehouses = Warehouse::when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->where('active', true)->orderBy('name')->get();
+
+        $activeWarehouse = $request->get('warehouse', 'all');
+        $isAll = $activeWarehouse === 'all' || !$warehouses->firstWhere('id', (int) $activeWarehouse);
+        $whId  = $isAll ? null : (int) $activeWarehouse;
+
+        $products = Product::with(['category', 'brand'])
+            ->when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        $stockMap = $whId ? $this->warehouseStockMap($cid, $whId) : null;
+
+        $rows = $products->map(function ($p) use ($isAll, $stockMap) {
+            return [
+                'name'  => $p->name,
+                'code'  => $p->code ?: $p->sku,
+                'price' => (float) $p->price,
+                'cost'  => (float) $p->cost,
+                'stock' => $isAll ? (float) $p->current_stock : (float) ($stockMap[$p->id] ?? 0),
+            ];
+        })->all();
+
+        return [
+            'rows'           => $rows,
+            'warehouseLabel' => $isAll ? 'Todos los almacenes' : ($warehouses->firstWhere('id', $whId)?->name ?? '—'),
+            'companyName'    => $user->getCurrentCompany()?->name ?? config('app.name'),
+        ];
+    }
+
+    /** Exporta el inventario a Excel (.xlsx) con logo. */
+    public function exportExcel(Request $request)
+    {
+        $data = $this->stockExportData($request);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Inventario');
+
+        // Logo
+        $logoPath = public_path('images/logo_blanco.jpeg');
+        if (is_file($logoPath)) {
+            $drawing = new Drawing();
+            $drawing->setName('VR Motors');
+            $drawing->setPath($logoPath);
+            $drawing->setHeight(55);
+            $drawing->setCoordinates('A1');
+            $drawing->setOffsetX(4);
+            $drawing->setOffsetY(4);
+            $drawing->setWorksheet($sheet);
+            $sheet->getRowDimension(1)->setRowHeight(48);
+        }
+
+        // Encabezado del documento (merge para no afectar el ancho de columnas)
+        $sheet->setCellValue('B1', $data['companyName'] . ' — Inventario');
+        $sheet->mergeCells('B1:E1');
+        $sheet->getStyle('B1')->getFont()->setBold(true)->setSize(14);
+        $sheet->setCellValue('B2', 'Almacén: ' . $data['warehouseLabel']);
+        $sheet->mergeCells('B2:E2');
+        $sheet->setCellValue('B3', 'Generado: ' . now()->format('d/m/Y H:i'));
+        $sheet->mergeCells('B3:E3');
+        $sheet->getStyle('B2:B3')->getFont()->setSize(10)->getColor()->setRGB('666666');
+
+        // Cabecera de la tabla
+        $headerRow = 5;
+        $sheet->fromArray(['Producto', 'Código', 'Precio', 'Costo', 'Cantidad disponible'], null, 'A' . $headerRow);
+        $sheet->getStyle("A{$headerRow}:E{$headerRow}")->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle("A{$headerRow}:E{$headerRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('0A0A0A');
+
+        // Datos
+        $r = $headerRow + 1;
+        foreach ($data['rows'] as $row) {
+            $sheet->setCellValue("A{$r}", $row['name']);
+            $sheet->setCellValueExplicit("B{$r}", (string) $row['code'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$r}", $row['price']);
+            $sheet->setCellValue("D{$r}", $row['cost']);
+            $sheet->setCellValue("E{$r}", $row['stock']);
+            $r++;
+        }
+        $lastRow = $r - 1;
+
+        if ($lastRow >= $headerRow + 1) {
+            $sheet->getStyle("C" . ($headerRow + 1) . ":D{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle("E" . ($headerRow + 1) . ":E{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("C{$headerRow}:E{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // Anchos
+        $sheet->getColumnDimension('A')->setWidth(42);
+        $sheet->getColumnDimension('B')->setWidth(18);
+        $sheet->getColumnDimension('C')->setWidth(12);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(20);
+
+        $fileName = 'inventario_' . now()->format('Ymd_His') . '.xlsx';
+        $tmp = storage_path('app/' . $fileName);
+        (new Xlsx($spreadsheet))->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /** Vista imprimible del inventario para guardar como PDF (con logo). */
+    public function exportPdf(Request $request)
+    {
+        return view('inventory.stock.export-pdf', array_merge($this->stockExportData($request), [
+            'generatedAt' => now()->format('d/m/Y H:i'),
+        ]));
     }
 
     /** Vista de migración de inventario */

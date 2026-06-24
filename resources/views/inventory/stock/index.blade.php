@@ -16,6 +16,27 @@
         </div>
         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.create', auth()->user()->getCurrentCompany()))
         <div class="d-flex gap-2 flex-wrap">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light border dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Exportar inventario">
+                    <i class="bi bi-download me-1"></i>Exportar
+                </button>
+                <ul class="dropdown-menu shadow-sm">
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2"
+                           href="{{ route('inventory.stock.export.pdf', ['warehouse' => request('warehouse', 'all')]) }}"
+                           target="_blank" rel="noopener">
+                            <i class="bi bi-file-earmark-pdf text-danger"></i>Descargar PDF
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2"
+                           href="{{ route('inventory.stock.export.excel', ['warehouse' => request('warehouse', 'all')]) }}">
+                            <i class="bi bi-file-earmark-excel text-success"></i>Descargar Excel
+                        </a>
+                    </li>
+                </ul>
+            </div>
             <a href="{{ route('inventory.stock.template') }}"
                class="btn btn-sm btn-light border"
                title="Descargar plantilla Excel">
@@ -324,10 +345,14 @@
         </div>
     </div>
 
-    {{-- Pagination --}}
-    @if(isset($products) && method_exists($products, 'links'))
-    <div class="mt-4 d-flex justify-content-center">{{ $products->links() }}</div>
-    @endif
+    {{-- Pagination (client-side: opera sobre el conjunto filtrado) --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3"
+         id="stockPaginationWrap" style="display:none;">
+        <div class="text-muted small" id="stockPageInfo"></div>
+        <nav aria-label="Paginación de inventario">
+            <ul class="pagination pagination-sm mb-0" id="stockPagination"></ul>
+        </nav>
+    </div>
 
 </div>
 
@@ -602,16 +627,21 @@
         });
     });
 
-    // ── Category + brand + search filters ─────────────────────────────
+    // ── Category + brand + search filters + paginación client-side ────
     let activeCat   = '';
     let activeBrand = '';
     let searchQ     = '';
     let sortAsc     = true;
 
-    function applyFilters() {
-        const rows    = document.querySelectorAll('#stockBody .stock-row');
-        const noRes   = document.getElementById('stockNoResults');
-        let visible   = 0;
+    const PAGE_SIZE     = 25;          // productos por página
+    let currentPage     = 1;
+    let filteredRows    = [];          // filas que pasan los filtros (en orden del DOM)
+
+    // Determina qué filas pasan los filtros (sin tocar la visibilidad todavía).
+    function computeFiltered() {
+        const rows = document.querySelectorAll('#stockBody .stock-row');
+        const q    = searchQ.toLowerCase().trim();
+        filteredRows = [];
 
         rows.forEach(function (row) {
             const cat   = row.dataset.category || '';
@@ -620,7 +650,6 @@
             const name  = row.dataset.name  || '';
             const sku   = row.dataset.sku   || '';
             const code  = row.dataset.code  || '';
-            const q     = searchQ.toLowerCase().trim();
 
             // Category filter
             let catMatch = true;
@@ -639,13 +668,106 @@
                 searchMatch = name.includes(q) || sku.includes(q) || code.includes(q);
             }
 
-            const show = catMatch && brandMatch && searchMatch;
-            row.style.display = show ? '' : 'none';
-            if (show) visible++;
+            if (catMatch && brandMatch && searchMatch) filteredRows.push(row);
         });
-
-        if (noRes) noRes.style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
     }
+
+    // Muestra solo las filas de la página actual del conjunto ya filtrado.
+    function renderPage() {
+        const allRows = document.querySelectorAll('#stockBody .stock-row');
+        const noRes   = document.getElementById('stockNoResults');
+        const total   = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const end   = start + PAGE_SIZE;
+
+        // Ocultar todo, luego mostrar solo la porción de la página.
+        allRows.forEach(function (row) { row.style.display = 'none'; });
+        for (let i = start; i < end && i < total; i++) {
+            filteredRows[i].style.display = '';
+        }
+
+        if (noRes) noRes.style.display = (total === 0 && allRows.length > 0) ? '' : 'none';
+
+        renderPagination(total, totalPages, start, Math.min(end, total));
+    }
+
+    // Construye la barra de paginación (Bootstrap) + el texto informativo.
+    function renderPagination(total, totalPages, start, shownEnd) {
+        const wrap = document.getElementById('stockPaginationWrap');
+        const ul   = document.getElementById('stockPagination');
+        const info = document.getElementById('stockPageInfo');
+        if (!wrap || !ul) return;
+
+        // Si todo cabe en una sola página, ocultar la barra.
+        if (total <= PAGE_SIZE) {
+            wrap.style.display = 'none';
+            ul.innerHTML = '';
+            if (info) info.textContent = '';
+            return;
+        }
+        wrap.style.display = '';
+
+        if (info) {
+            info.textContent = 'Mostrando ' + (start + 1) + '–' + shownEnd + ' de ' +
+                total.toLocaleString('es') + ' productos';
+        }
+
+        // Ventana de páginas alrededor de la actual.
+        const pages = [];
+        const win = 2;
+        let from = Math.max(1, currentPage - win);
+        let to   = Math.min(totalPages, currentPage + win);
+        if (from > 1)          { pages.push(1); if (from > 2) pages.push('…'); }
+        for (let p = from; p <= to; p++) pages.push(p);
+        if (to < totalPages)   { if (to < totalPages - 1) pages.push('…'); pages.push(totalPages); }
+
+        let html = '';
+        // Prev
+        html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">' +
+                '<a class="page-link" href="#" data-page="' + (currentPage - 1) + '" aria-label="Anterior">&laquo;</a></li>';
+        // Numbers
+        pages.forEach(function (p) {
+            if (p === '…') {
+                html += '<li class="page-item disabled"><span class="page-link">…</span></li>';
+            } else {
+                html += '<li class="page-item ' + (p === currentPage ? 'active' : '') + '">' +
+                        '<a class="page-link" href="#" data-page="' + p + '">' + p + '</a></li>';
+            }
+        });
+        // Next
+        html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">' +
+                '<a class="page-link" href="#" data-page="' + (currentPage + 1) + '" aria-label="Siguiente">&raquo;</a></li>';
+
+        ul.innerHTML = html;
+
+        ul.querySelectorAll('a.page-link[data-page]').forEach(function (a) {
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                const p = parseInt(this.dataset.page, 10);
+                if (isNaN(p) || p < 1 || p > totalPages || p === currentPage) return;
+                currentPage = p;
+                renderPage();
+                // Llevar la vista al inicio de la tabla.
+                const tbl = document.getElementById('stockTable');
+                if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    }
+
+    // Punto de entrada: recalcula filtros, vuelve a la página 1 y pinta.
+    function applyFilters() {
+        computeFiltered();
+        currentPage = 1;
+        renderPage();
+    }
+
+    // Pintado inicial.
+    applyFilters();
 
     // Category pills (tienen data-cat)
     document.querySelectorAll('.cat-pill[data-cat]').forEach(function (btn) {
@@ -704,6 +826,9 @@
                 return sortAsc ? na.localeCompare(nb) : nb.localeCompare(na);
             });
             rows.forEach(function (row) { tbody.appendChild(row); });
+
+            // Reordenado el DOM, recalcular el conjunto filtrado y volver a paginar.
+            applyFilters();
         });
     }
 

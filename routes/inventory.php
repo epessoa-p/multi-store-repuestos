@@ -13,6 +13,8 @@ Route::middleware('auth')->group(function () {
     Route::prefix('inventory/stock')->name('inventory.stock')->group(function () {
         Route::get('/',                   [StockController::class, 'index'])->middleware('check-permission:products.view');
         Route::get('/template',           [StockController::class, 'template'])->name('.template')->middleware('check-permission:products.view');
+        Route::get('/export/excel',       [StockController::class, 'exportExcel'])->name('.export.excel')->middleware('check-permission:products.view');
+        Route::get('/export/pdf',         [StockController::class, 'exportPdf'])->name('.export.pdf')->middleware('check-permission:products.view');
         Route::get('/import',             [StockController::class, 'import'])->name('.import')->middleware('check-permission:products.create');
         Route::post('/import',            [StockController::class, 'processImport'])->name('.import.process')->middleware('check-permission:products.create');
         Route::post('/import/preview',    [StockController::class, 'previewImport'])->name('.import.preview')->middleware('check-permission:products.create');
