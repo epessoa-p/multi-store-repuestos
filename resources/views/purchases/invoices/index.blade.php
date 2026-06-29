@@ -10,7 +10,7 @@
         </div>
         @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('purchases.create', auth()->user()->getCurrentCompany()))
         <a href="{{ route('purchases.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>Nueva factura
+            <i class="bi bi-plus-lg me-1"></i>Nueva compra
         </a>
         @endif
     </div>

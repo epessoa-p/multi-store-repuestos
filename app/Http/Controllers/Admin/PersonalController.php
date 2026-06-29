@@ -239,8 +239,15 @@ class PersonalController extends Controller
     {
         $this->authorizePersonal($personal);
 
-        DB::transaction(function () use ($personal) {
-            $user = $personal->user;
+        $user = $personal->user;
+
+        // No permitir eliminar si su usuario tiene historial operativo (ventas, cajas, pagos, etc.)
+        if ($user && ($refs = $user->operationalReferences())) {
+            return redirect()->route('personal.index')
+                ->with('error', $this->buildReferencesMessage($personal->full_name, $refs));
+        }
+
+        DB::transaction(function () use ($personal, $user) {
             $personal->delete();
             if ($user) {
                 $user->delete();
@@ -248,6 +255,17 @@ class PersonalController extends Controller
         });
 
         return redirect()->route('personal.index')->with('success', 'Registro de personal eliminado.');
+    }
+
+    /** Construye un mensaje legible con los registros que bloquean la eliminación. */
+    protected function buildReferencesMessage(string $name, array $refs): string
+    {
+        $detail = collect($refs)
+            ->map(fn ($count, $label) => "{$label} ({$count})")
+            ->implode(', ');
+
+        return "No se puede eliminar a {$name}: su usuario tiene registros asociados — {$detail}. "
+            . 'Desactívalo en lugar de eliminarlo para conservar el historial.';
     }
 
     protected function authorizePersonal(Personal $personal): void

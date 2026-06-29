@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
@@ -72,6 +74,64 @@ class User extends Authenticatable
     public function personal(): HasOne
     {
         return $this->hasOne(Personal::class);
+    }
+
+    /**
+     * Tablas operativas que referencian a un usuario (etiqueta => [[tabla, columna], ...]).
+     * Se usa para impedir eliminar un usuario/personal con historial asociado.
+     */
+    protected static array $operationalReferenceMap = [
+        'Ventas'                    => [['sales', 'created_by']],
+        'Pagos de ventas'           => [['sale_payments', 'user_id']],
+        'Devoluciones de venta'     => [['sale_returns', 'created_by']],
+        'Cotizaciones'              => [['quotes', 'created_by']],
+        'Sesiones de caja'          => [['cash_register_sessions', 'opened_by'], ['cash_register_sessions', 'closed_by']],
+        'Cajas registradoras'       => [['cash_registers', 'created_by']],
+        'Movimientos de caja'       => [['cash_movements', 'user_id']],
+        'Caja chica'                => [['petty_cashes', 'created_by'], ['petty_cash_movements', 'created_by']],
+        'Movimientos de inventario' => [['inventory_movements', 'user_id']],
+        'Compras'                   => [['purchases', 'created_by'], ['purchase_orders', 'created_by']],
+        'Recepciones de mercadería' => [['goods_receipts', 'received_by']],
+        'Pagos a proveedores'       => [['supplier_payments', 'user_id']],
+        'Movimientos de tesorería'  => [['treasury_movements', 'user_id']],
+        'Órdenes de trabajo'        => [['work_orders', 'created_by'], ['work_orders', 'mechanic_id']],
+        'Pagos de taller'           => [['work_order_payments', 'user_id']],
+        'Contratos de alquiler'     => [['rental_contracts', 'created_by']],
+        'Pagos de alquiler'         => [['rental_payments', 'user_id']],
+        'Créditos'                  => [['credit_applications', 'created_by']],
+        'Comisiones'                => [['commissions', 'created_by']],
+        'Clientes registrados'      => [['clients', 'created_by']],
+    ];
+
+    /**
+     * Devuelve los registros operativos asociados a este usuario, agrupados por
+     * etiqueta legible: ['Ventas' => 3, 'Pagos de ventas' => 5, ...].
+     * Solo incluye las categorías con al menos un registro.
+     */
+    public function operationalReferences(): array
+    {
+        $found = [];
+
+        foreach (static::$operationalReferenceMap as $label => $sources) {
+            $count = 0;
+            foreach ($sources as [$table, $column]) {
+                if (!Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+                    continue;
+                }
+                $count += DB::table($table)->where($column, $this->id)->count();
+            }
+            if ($count > 0) {
+                $found[$label] = $count;
+            }
+        }
+
+        return $found;
+    }
+
+    /** ¿El usuario tiene historial operativo que impida eliminarlo? */
+    public function hasOperationalReferences(): bool
+    {
+        return !empty($this->operationalReferences());
     }
 
     /**

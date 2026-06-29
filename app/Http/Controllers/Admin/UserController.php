@@ -123,7 +123,18 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         if ($user->id === auth()->user()->id) {
-            return back()->withErrors(['error' => 'No puedes eliminar tu propio usuario']);
+            return back()->with('error', 'No puedes eliminar tu propio usuario.');
+        }
+
+        // No permitir eliminar si tiene historial operativo (ventas, cajas, pagos, etc.)
+        if ($refs = $user->operationalReferences()) {
+            $detail = collect($refs)
+                ->map(fn ($count, $label) => "{$label} ({$count})")
+                ->implode(', ');
+
+            return redirect()->route('users.index')->with('error',
+                "No se puede eliminar el usuario «{$user->name}»: tiene registros asociados — {$detail}. "
+                . 'Desactívalo en lugar de eliminarlo para conservar el historial.');
         }
 
         $user->delete();

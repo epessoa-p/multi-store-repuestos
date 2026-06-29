@@ -293,7 +293,7 @@
                         <div class="d-flex flex-column gap-2 mt-4">
                             <button type="submit" class="btn btn-primary w-100" id="btnSubmit"
                                     {{ ($fromOrder && $uninvoicedReceipts->isEmpty()) ? 'disabled' : '' }}>
-                                <i class="bi bi-check-lg me-1"></i>Registrar factura
+                                <i class="bi bi-check-lg me-1"></i>Registrar compra
                             </button>
                             <a href="{{ route('purchases.index') }}" class="btn btn-light border w-100">
                                 <i class="bi bi-x-lg me-1"></i>Cancelar
