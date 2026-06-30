@@ -310,11 +310,11 @@
 <div class="modal fade" id="creditModal" tabindex="-1" aria-labelledby="creditModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom">
+            <div class="modal-header credit-modal-header">
                 <h5 class="modal-title fw-semibold" id="creditModalLabel">
-                    <i class="bi bi-calendar2-check me-2 text-muted"></i>Venta a crédito — Cronograma de cuotas
+                    <i class="bi bi-calendar2-check me-2"></i>Venta a crédito — Cronograma de cuotas
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="row g-3 mb-3">
@@ -347,10 +347,12 @@
                             <span class="input-group-text bg-light px-2">%</span>
                         </div>
                     </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary w-100 fw-semibold" onclick="generateInstallments()">
+                            <i class="bi bi-lightning-charge-fill me-1"></i>Generar cuotas
+                        </button>
+                    </div>
                 </div>
-                <button type="button" class="btn btn-light border btn-sm mb-3" onclick="generateInstallments()">
-                    <i class="bi bi-lightning-charge me-1"></i>Generar cuotas
-                </button>
 
                 {{-- Installments table --}}
                 <div id="installmentsWrap" style="display:none;">
@@ -368,8 +370,8 @@
                         </table>
                     </div>
                     <div class="d-flex align-items-center justify-content-between mt-2 flex-wrap gap-2">
-                        <button type="button" class="btn btn-sm btn-light border" onclick="addInstallmentRow()">
-                            <i class="bi bi-plus-lg me-1"></i>+ Cuota
+                        <button type="button" class="btn btn-sm btn-add-cuota" onclick="addInstallmentRow()">
+                            <i class="bi bi-plus-circle-fill me-1"></i>Agregar cuota
                         </button>
                         <div id="cm_balance_indicator" class="small fw-semibold"></div>
                     </div>
@@ -632,6 +634,30 @@
 .pm-counter {
     position: absolute; bottom: 8px; right: 10px;
     background: rgba(0,0,0,.55); color: #fff; font-size: .72rem; padding: 2px 9px; border-radius: 999px;
+}
+
+/* Credit modal — encabezado con color de marca */
+.credit-modal-header {
+    background: linear-gradient(135deg, #e10600 0%, #a30400 100%);
+    border-bottom: 0;
+}
+.credit-modal-header .modal-title,
+.credit-modal-header .modal-title i { color: #fff; }
+
+/* Botón "Agregar cuota" */
+.btn-add-cuota {
+    border: 1.5px dashed #16a34a;
+    color: #16a34a;
+    background: #f0fdf4;
+    font-weight: 600;
+    border-radius: 50rem;
+    transition: all .15s ease;
+}
+.btn-add-cuota:hover {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(22,163,74,.25);
 }
 
 @media print {

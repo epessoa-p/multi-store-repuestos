@@ -353,7 +353,7 @@ class SaleController extends Controller
         $this->authorizeSale($sale);
         $sale->load([
             'client', 'branch', 'company', 'createdBy',
-            'items.product', 'session.cashRegister',
+            'items.product', 'session.cashRegister', 'installments',
         ]);
 
         return view('sales.invoices.receipt', compact('sale'));

@@ -138,6 +138,30 @@
         @endif
     </div>
 
+    {{-- ── Cronograma de cuotas (solo crédito) ─────── --}}
+    @if($sale->sale_type === 'credit' && $sale->installments->isNotEmpty())
+    <hr class="sep">
+    <div class="bold center" style="margin-bottom:3px;">CRONOGRAMA DE CUOTAS</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="text-align:left;">#</th>
+                <th style="text-align:left;">Vencimiento</th>
+                <th class="col-sub">Monto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($sale->installments as $inst)
+            <tr>
+                <td>{{ $inst->number }}</td>
+                <td>{{ $inst->due_date->format('d/m/Y') }}</td>
+                <td class="col-sub bold">{{ $money($inst->amount) }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
     <hr class="sep">
 
     <div class="center foot">
