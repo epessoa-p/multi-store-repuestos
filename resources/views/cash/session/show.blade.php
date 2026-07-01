@@ -102,8 +102,18 @@
     {{-- Cierre info --}}
     @php $diff = (float)$session->closing_amount - $expected; @endphp
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h6 class="mb-0"><i class="bi bi-lock"></i> Resumen de cierre</h6>
+            @if($canAdjustCash && abs($diff) >= 0.01)
+            <button type="button" class="btn btn-sm btn-warning text-dark fw-semibold btn-adjust-cash"
+                    data-session="{{ $session->id }}"
+                    data-expected="{{ number_format($expected, 2, '.', '') }}"
+                    data-counted="{{ number_format($session->closing_amount, 2, '.', '') }}"
+                    data-difference="{{ number_format($diff, 2, '.', '') }}"
+                    data-register="{{ $session->cashRegister?->name }}">
+                <i class="bi bi-sliders me-1"></i>Resolver diferencia
+            </button>
+            @endif
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -357,5 +367,8 @@
 </script>
 @endpush
 @endif
+
+{{-- Modal compartido "Resolver diferencia" (para sesiones cerradas con diferencia) --}}
+@include('cash.session._adjust-modal')
 
 @endsection

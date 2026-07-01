@@ -592,7 +592,8 @@
                         <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
                             <thead>
                                 <tr class="table-light border-bottom">
-                                    <th class="ps-4 py-3 fw-semibold text-muted text-uppercase"
+                                    <th class="ps-4 py-3" style="width:36px;"></th>
+                                    <th class="py-3 fw-semibold text-muted text-uppercase"
                                         style="letter-spacing:.04em;font-size:.72rem;">Caja</th>
                                     <th class="py-3 fw-semibold text-muted text-uppercase"
                                         style="letter-spacing:.04em;font-size:.72rem;">Sucursal</th>
@@ -619,8 +620,12 @@
                                     $diffClass   = $diff == 0 ? 'text-muted' : ($diff > 0 ? 'text-success' : 'text-danger');
                                     $diffPrefix  = $diff > 0 ? '+' : '';
                                 @endphp
-                                <tr class="border-bottom border-light" @if($isOpen) style="background:rgba(245,158,11,.06);" @endif>
-                                    <td class="ps-4 py-2 fw-semibold small">
+                                <tr class="border-bottom border-light closure-row" data-session="{{ $c->id }}"
+                                    style="cursor:pointer;@if($isOpen)background:rgba(245,158,11,.06);@endif">
+                                    <td class="ps-4 py-2 text-center">
+                                        <i class="bi bi-chevron-right closure-chevron text-muted"></i>
+                                    </td>
+                                    <td class="py-2 fw-semibold small">
                                         {{ $c->cashRegister?->name ?? '—' }}
                                         @if($isOpen)
                                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1"
@@ -675,9 +680,19 @@
                                         @endif
                                     </td>
                                 </tr>
+                                <tr class="closure-detail-row d-none" data-session="{{ $c->id }}">
+                                    <td colspan="9" class="p-0 bg-body-tertiary">
+                                        <div class="closure-detail" data-loaded="0"
+                                             data-url="{{ route('cash.movements.session-detail', $c->id) }}">
+                                            <div class="text-center py-4 text-muted closure-detail-spinner">
+                                                <span class="spinner-border spinner-border-sm me-2"></span>Cargando detalle…
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-5 text-muted">
+                                    <td colspan="9" class="text-center py-5 text-muted">
                                         <i class="bi bi-lock fs-1 d-block mb-2 opacity-25"></i>
                                         <p class="mb-0 small">Sin cajas aperturadas ni cierres en este período.</p>
                                     </td>
@@ -694,6 +709,9 @@
         </div>{{-- /paneCierres --}}
 
     </div>{{-- /main tab-content --}}
+
+    {{-- ── Modal compartido "Resolver diferencia" ────────────────────── --}}
+    @include('cash.session._adjust-modal')
 
 </div>{{-- /container-fluid --}}
 
@@ -823,6 +841,28 @@
     }
     .branch-tab.active .branch-dot { display: none; }
     .branch-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+    /* ── Cierres: fila expandible ─────────────────────────────── */
+    .closure-row:hover { background: var(--surface-muted, #f8f9fa) !important; }
+    .closure-chevron { transition: transform .18s ease; font-size: .8rem; }
+    .closure-row.expanded .closure-chevron { transform: rotate(90deg); }
+    .closure-row.expanded { background: var(--surface-muted, #f6f7f9) !important; }
+
+    /* Mini KPIs del detalle */
+    .session-detail { border-top: 2px solid var(--brand-black, #0a0a0a); }
+    .sd-kpi {
+        background: #fff;
+        border: 1px solid #eceef1;
+        border-radius: 10px;
+        padding: .5rem .7rem;
+        height: 100%;
+    }
+    .sd-kpi-label { font-size: .6rem; text-transform: uppercase; letter-spacing: .04em; color: #8a929c; }
+    .sd-kpi-value { font-weight: 700; font-size: .95rem; line-height: 1.2; }
+    .sd-kpi-income   { border-left: 3px solid #16a34a; }
+    .sd-kpi-expense  { border-left: 3px solid #e11d48; }
+    .sd-kpi-expected { border-left: 3px solid #0d6efd; }
+
 </style>
 @endpush
 
@@ -961,6 +1001,45 @@
             if (h) a.href = a.href.split('#')[0] + h;
         });
     });
+
+    // ── Cierres: expandir fila y cargar detalle (AJAX diferido) ──────
+    document.querySelectorAll('.closure-row').forEach(function (row) {
+        row.addEventListener('click', function () {
+            var id = this.dataset.session;
+            var detailRow = document.querySelector('.closure-detail-row[data-session="' + id + '"]');
+            if (!detailRow) return;
+
+            var isHidden = detailRow.classList.contains('d-none');
+            detailRow.classList.toggle('d-none');
+            this.classList.toggle('expanded', isHidden);
+
+            if (isHidden) {
+                var box = detailRow.querySelector('.closure-detail');
+                if (box && box.dataset.loaded === '0') {
+                    box.dataset.loaded = '1';
+                    fetch(box.dataset.url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+                        .then(function (html) { box.innerHTML = html; })
+                        .catch(function () {
+                            box.dataset.loaded = '0';
+                            box.innerHTML = '<div class="text-center py-4 text-danger small">' +
+                                '<i class="bi bi-exclamation-triangle me-1"></i>No se pudo cargar el detalle. Intenta de nuevo.</div>';
+                        });
+                }
+            }
+        });
+    });
+
+    // (El modal "Resolver diferencia" vive en el parcial cash.session._adjust-modal,
+    //  con su propio script autocontenido.)
+
+    // Al cargar: si venimos de un ajuste, abrir la pestaña "Cierres de caja"
+    try {
+        if (sessionStorage.getItem('cashOpenCierres') === '1') {
+            sessionStorage.removeItem('cashOpenCierres');
+            showTab('#paneCierres');
+        }
+    } catch (e) {}
 
 })();
 </script>

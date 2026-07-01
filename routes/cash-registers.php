@@ -13,6 +13,18 @@ Route::middleware('auth')->group(function () {
     Route::get('cash/movimientos', [MovementController::class, 'index'])
         ->name('cash.movements')->middleware('check-permission:cash-registers.view');
 
+    // Detalle de una sesión (parcial cargado por AJAX en la pestaña de cierres)
+    Route::get('cash/movimientos/session/{session}/detail', [MovementController::class, 'sessionDetail'])
+        ->name('cash.movements.session-detail')->middleware('check-permission:cash-registers.view');
+
+    // Ajuste de diferencia de un cierre (acción sensible: solo admin/gerente)
+    Route::post('cash/session/{session}/adjust', [CashSessionController::class, 'adjustDifference'])
+        ->name('cash.session.adjust')->middleware('check-permission:cash.adjust');
+
+    // Corrección de conteo (el cajero contó/tecleó mal; no genera movimiento)
+    Route::post('cash/session/{session}/recount', [CashSessionController::class, 'recountClosing'])
+        ->name('cash.session.recount')->middleware('check-permission:cash.adjust');
+
     // ── Gastos desde caja (modal navbar) ──────────────────────────
     Route::get('cash/expense/data', [ExpenseController::class, 'data'])
         ->name('cash.expense.data')->middleware('check-permission:cash.operate');

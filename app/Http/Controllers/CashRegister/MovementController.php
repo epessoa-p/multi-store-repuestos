@@ -163,14 +163,44 @@ class MovementController extends Controller
             ->orderByDesc('opened_at')
             ->paginate(15, ['*'], 'clp')->withQueryString();
 
+        // ¿Puede el usuario ajustar diferencias de caja? (admin/gerente)
+        $canAdjustCash = $user->is_super_admin
+            || $user->hasPermissionInCompany('cash.adjust', $user->getCurrentCompany());
+
         return view('cash.movements.index', compact(
             'branches', 'branch', 'period', 'periodLabel', 'q', 'from', 'to',
             'ingresos', 'egresos', 'ventas', 'gastos', 'balance',
             'allIncome', 'allExpense', 'allBalance', 'branchHistory',
             'porCobrar', 'totalCobrar', 'porPagar', 'totalPagar', 'closures',
-            'dateValue', 'weekValue', 'monthValue'
+            'dateValue', 'weekValue', 'monthValue', 'canAdjustCash'
         ) + ['date' => $dateValue,
              'fromDate' => $request->get('from'), 'toDate' => $request->get('to')]);
+    }
+
+    /**
+     * Detalle de una sesión de caja (parcial cargado por AJAX en la pestaña
+     * "Cierres de caja"). Valida que la sesión pertenezca a la empresa activa.
+     */
+    public function sessionDetail(CashRegisterSession $session)
+    {
+        $user = auth()->user();
+        $session->load(['cashRegister.branch', 'openedBy', 'closedBy']);
+
+        if (!$user->is_super_admin
+            && $session->cashRegister?->company_id !== $user->getCurrentCompany()?->id) {
+            abort(403);
+        }
+
+        $movements = $session->movements()
+            ->with('user')
+            ->orderByDesc('movement_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $canAdjustCash = $user->is_super_admin
+            || $user->hasPermissionInCompany('cash.adjust', $user->getCurrentCompany());
+
+        return view('cash.session._detail', compact('session', 'movements', 'canAdjustCash'));
     }
 
     /** Devuelve [Carbon from, Carbon to, label] según el período */
