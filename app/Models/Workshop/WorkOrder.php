@@ -76,6 +76,7 @@ class WorkOrder extends Model
     public function parts(): HasMany        { return $this->hasMany(WorkOrderPart::class); }
     public function installments(): HasMany { return $this->hasMany(WorkOrderInstallment::class)->orderBy('number'); }
     public function payments(): HasMany     { return $this->hasMany(WorkOrderPayment::class)->latest('payment_date'); }
+    public function photos(): HasMany       { return $this->hasMany(WorkOrderPhoto::class)->orderBy('sort_order'); }
 
     public function getBalanceAttribute(): float
     {

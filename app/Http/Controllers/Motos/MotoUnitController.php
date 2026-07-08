@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Motos;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Motos\MotoBrand;
 use App\Models\Motos\MotoModel;
 use App\Models\Motos\MotoUnit;
 use Illuminate\Http\Request;
@@ -100,6 +101,7 @@ class MotoUnitController extends Controller
             ],
             'engine_number'  => 'nullable|string|max:80',
             'color'          => 'nullable|string|max:50',
+            'placa'          => 'nullable|string|max:20',
             'year'           => 'nullable|integer|min:1900|max:2100',
             'cost'           => 'required|numeric|min:0',
             'price'          => 'required|numeric|min:0',
@@ -119,6 +121,8 @@ class MotoUnitController extends Controller
         $cid    = auth()->user()->getCurrentCompany()?->id;
         $models = MotoModel::with('brand')->when($cid, fn ($q) => $q->where('company_id', $cid))->where('active', true)->orderBy('name')->get();
         $branches = Branch::when($cid, fn ($q) => $q->where('company_id', $cid))->where('active', true)->orderBy('name')->get();
-        return compact('models', 'branches');
+        // Todas las marcas activas (no solo las que tienen modelos relacionados).
+        $brands = MotoBrand::when($cid, fn ($q) => $q->where('company_id', $cid))->where('active', true)->orderBy('name')->get();
+        return compact('models', 'branches', 'brands');
     }
 }

@@ -32,6 +32,11 @@ Route::middleware('auth')->prefix('loyalty')->name('loyalty.')->group(function (
         ->middleware('check-permission:loyalty-rewards.create');
     Route::post('/rewards',               [LoyaltyRewardController::class, 'store'])->name('rewards.store')
         ->middleware('check-permission:loyalty-rewards.create');
+    // Alta/edición por AJAX desde el panel doble (producto → recompensa)
+    Route::post('/rewards/catalog',              [LoyaltyRewardController::class, 'catalogStore'])->name('rewards.catalog.store')
+        ->middleware('check-permission:loyalty-rewards.create');
+    Route::put('/rewards/{reward}/catalog',      [LoyaltyRewardController::class, 'catalogUpdate'])->name('rewards.catalog.update')
+        ->middleware('check-permission:loyalty-rewards.edit');
     Route::get('/rewards/{reward}/edit',  [LoyaltyRewardController::class, 'edit'])->name('rewards.edit')
         ->middleware('check-permission:loyalty-rewards.edit');
     Route::put('/rewards/{reward}',       [LoyaltyRewardController::class, 'update'])->name('rewards.update')

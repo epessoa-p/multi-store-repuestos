@@ -27,7 +27,7 @@ class MotoUnit extends Model
 
     protected $fillable = [
         'company_id', 'moto_model_id', 'branch_id', 'chassis_number', 'engine_number',
-        'color', 'year', 'cost', 'price', 'status', 'sale_id',
+        'color', 'placa', 'year', 'cost', 'price', 'status', 'sale_id',
         'delivered_at', 'delivered_to', 'assigned_plate', 'delivery_notes', 'notes',
     ];
 

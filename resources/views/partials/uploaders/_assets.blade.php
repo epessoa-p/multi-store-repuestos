@@ -105,6 +105,7 @@
         let stream = null;
 
         function start() {
+            if (stream) return; // ya está encendida
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 alert('Tu navegador no permite usar la cámara aquí.');
                 return;
@@ -140,7 +141,7 @@
         startB && startB.addEventListener('click', start);
         stopB  && stopB.addEventListener('click', stop);
         snapB  && snapB.addEventListener('click', snap);
-        return { stop };
+        return { start, stop };
     }
 
     function setupTabs(root, onSwitch) {
@@ -220,7 +221,10 @@
         const drop = root.querySelector('.mu-drop');
         if (drop) setupDrop(drop, addFiles);
         let cam;
-        setupTabs(root, pane => { if (pane !== 'camera' && cam) cam.stop(); });
+        setupTabs(root, pane => {
+            if (pane === 'camera') { cam && cam.start(); }   // abre la cámara directo
+            else if (cam) cam.stop();
+        });
         cam = setupCamera(root, file => addFiles([file]));
         render();
     }
@@ -281,7 +285,10 @@
         picker.addEventListener('change', () => { handleFiles(picker.files, pendingType); picker.value = ''; });
 
         let cam;
-        setupTabs(root, pane => { if (pane !== 'camera' && cam) cam.stop(); });
+        setupTabs(root, pane => {
+            if (pane === 'camera') { cam && cam.start(); }   // abre la cámara directo
+            else if (cam) cam.stop();
+        });
         cam = setupCamera(root, file => handleFiles([file], pendingType));
     }
 

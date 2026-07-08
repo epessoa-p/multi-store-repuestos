@@ -64,6 +64,9 @@
                         <dt class="col-5 text-muted fw-normal">Color</dt>
                         <dd class="col-7 mb-0">{{ $unit->color ?: '—' }}</dd>
 
+                        <dt class="col-5 text-muted fw-normal">Placa</dt>
+                        <dd class="col-7 mb-0 font-monospace">{{ $unit->placa ?: '—' }}</dd>
+
                         <dt class="col-5 text-muted fw-normal">Año</dt>
                         <dd class="col-7 mb-0">{{ $unit->year ?? '—' }}</dd>
 

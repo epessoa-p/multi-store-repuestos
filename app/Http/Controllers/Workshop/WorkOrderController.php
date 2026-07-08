@@ -11,8 +11,10 @@ use App\Models\Workshop\Mechanic;
 use App\Models\Workshop\Service;
 use App\Models\Workshop\WorkOrder;
 use App\Models\Workshop\WorkOrderPart;
+use App\Models\Workshop\WorkOrderPhoto;
 use App\Models\Workshop\WorkOrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
@@ -67,9 +69,22 @@ class WorkOrderController extends Controller
             return back()->withInput()->withErrors(['error' => 'No hay una empresa activa.']);
         }
 
+        $mode = $request->input('vehicle_mode', 'existing');
+
         $validated = $request->validate([
             'client_id'      => 'required|exists:clients,id',
-            'vehicle_id'     => 'required|exists:vehicles,id',
+            'vehicle_mode'   => 'nullable|in:existing,new',
+            // Vehículo existente: requerido solo en modo "existing".
+            'vehicle_id'     => [Rule::requiredIf($mode !== 'new'), 'nullable', 'exists:vehicles,id'],
+            // Vehículo nuevo: la marca es obligatoria solo en modo "new".
+            'vehicle'            => 'nullable|array',
+            'vehicle.brand'      => [Rule::requiredIf($mode === 'new'), 'nullable', 'string', 'max:100'],
+            'vehicle.model'      => 'nullable|string|max:100',
+            'vehicle.plate'      => 'nullable|string|max:20',
+            'vehicle.engine_cc'  => 'nullable|string|max:30',
+            'vehicle.year'       => 'nullable|integer|min:1900|max:2100',
+            'vehicle.color'      => 'nullable|string|max:40',
+            'vehicle.vin'        => 'nullable|string|max:60',
             'branch_id'      => 'nullable|exists:branches,id',
             'reception_date' => 'required|date',
             'mileage'        => 'nullable|integer|min:0',
@@ -77,17 +92,65 @@ class WorkOrderController extends Controller
             'reported_issue' => 'nullable|string',
             'received_items' => 'nullable|string',
             'notes'          => 'nullable|string',
+            'photos'         => 'nullable|array|max:12',
+            'photos.*'       => 'image|max:5120',
         ]);
 
         try {
-            $wo = WorkOrder::create([
-                ...$validated,
-                'company_id'     => $companyId,
-                'code'           => $this->nextCode($companyId, $validated['branch_id'] ?? null),
-                'status'         => 'recibida',
-                'payment_status' => 'pendiente',
-                'created_by'     => auth()->id(),
-            ]);
+            $wo = DB::transaction(function () use ($request, $validated, $companyId, $mode) {
+                // Resolver el vehículo: registrar uno nuevo o usar el existente.
+                if ($mode === 'new') {
+                    $v = $validated['vehicle'] ?? [];
+                    $vehicle = Vehicle::create([
+                        'company_id' => $companyId,
+                        'client_id'  => $validated['client_id'],
+                        'brand'      => $v['brand'],
+                        'model'      => $v['model']     ?? null,
+                        'plate'      => $v['plate']     ?? null,
+                        'engine_cc'  => $v['engine_cc'] ?? null,
+                        'year'       => $v['year']      ?? null,
+                        'color'      => $v['color']     ?? null,
+                        'vin'        => $v['vin']       ?? null,
+                        'active'     => true,
+                    ]);
+                    $vehicleId = $vehicle->id;
+                } else {
+                    $vehicleId = $validated['vehicle_id'];
+                }
+
+                $wo = WorkOrder::create([
+                    'company_id'     => $companyId,
+                    'client_id'      => $validated['client_id'],
+                    'vehicle_id'     => $vehicleId,
+                    'branch_id'      => $validated['branch_id'] ?? null,
+                    'reception_date' => $validated['reception_date'],
+                    'mileage'        => $validated['mileage'] ?? null,
+                    'fuel_level'     => $validated['fuel_level'] ?? null,
+                    'reported_issue' => $validated['reported_issue'] ?? null,
+                    'received_items' => $validated['received_items'] ?? null,
+                    'notes'          => $validated['notes'] ?? null,
+                    'code'           => $this->nextCode($companyId, $validated['branch_id'] ?? null),
+                    'status'         => 'recibida',
+                    'payment_status' => 'pendiente',
+                    'created_by'     => auth()->id(),
+                ]);
+
+                // Fotos de la recepción (estado del vehículo al recibirlo).
+                if ($request->hasFile('photos')) {
+                    foreach ($request->file('photos') as $i => $file) {
+                        $path = $file->store("work-orders/{$wo->id}", 'public');
+                        WorkOrderPhoto::create([
+                            'company_id'    => $companyId,
+                            'work_order_id' => $wo->id,
+                            'file_path'     => $path,
+                            'file_name'     => $file->getClientOriginalName(),
+                            'sort_order'    => $i,
+                        ]);
+                    }
+                }
+
+                return $wo;
+            });
 
             return redirect()->route('workshop.orders.show', $wo)->with('success', 'Recepción registrada: ' . $wo->code);
         } catch (\Throwable $e) {
@@ -147,6 +210,17 @@ class WorkOrderController extends Controller
             'diagnosis_date' => now()->toDateString(),
             'status'         => $order->status === 'recibida' ? 'diagnosticada' : $order->status,
         ]);
+
+        if ($request->expectsJson()) {
+            $order->refresh();
+            return response()->json([
+                'ok'           => true,
+                'message'      => 'Diagnóstico guardado.',
+                'diagnosis'    => $order->diagnosis,
+                'status_label' => $order->status_label,
+                'status_color' => $order->status_color,
+            ]);
+        }
         return back()->with('success', 'Diagnóstico guardado.');
     }
 
@@ -166,24 +240,43 @@ class WorkOrderController extends Controller
         $this->guardEditable($order);
 
         $validated = $request->validate([
-            'service_id'  => 'nullable|exists:services,id',
-            'description' => 'required|string|max:500',
+            'description' => 'required|string|max:255',
             'price'       => 'required|numeric|min:0',
             'quantity'    => 'required|integer|min:1',
             'mechanic_id' => 'nullable|exists:mechanics,id',
         ]);
 
+        $name = trim($validated['description']);
+
+        // Buscar el servicio por nombre (empresa) o crearlo al vuelo.
+        $service = Service::where('company_id', $order->company_id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (!$service) {
+            $service = Service::create([
+                'company_id' => $order->company_id,
+                'name'       => $name,
+                'price'      => $validated['price'],
+                'active'     => true,
+            ]);
+        }
+
         WorkOrderService::create([
             'work_order_id' => $order->id,
-            'service_id'    => $validated['service_id'] ?? null,
+            'service_id'    => $service->id,
             'mechanic_id'   => $validated['mechanic_id'] ?? $order->mechanic_id,
-            'description'   => $validated['description'],
+            'description'   => $name,
             'price'         => $validated['price'],
             'quantity'      => $validated['quantity'],
             'subtotal'      => (float) $validated['price'] * (float) $validated['quantity'],
         ]);
 
         $order->recalcTotals();
+
+        if ($request->expectsJson()) {
+            return $this->cardsJson($order, 'Servicio agregado.');
+        }
         return back()->with('success', 'Servicio agregado.');
     }
 
@@ -194,6 +287,10 @@ class WorkOrderController extends Controller
         abort_unless($service->work_order_id === $order->id, 404);
         $service->delete();
         $order->recalcTotals();
+
+        if (request()->expectsJson()) {
+            return $this->cardsJson($order, 'Servicio eliminado.');
+        }
         return back()->with('success', 'Servicio eliminado.');
     }
 
@@ -218,6 +315,10 @@ class WorkOrderController extends Controller
         ]);
 
         $order->recalcTotals();
+
+        if ($request->expectsJson()) {
+            return $this->cardsJson($order, 'Repuesto agregado.');
+        }
         return back()->with('success', 'Repuesto agregado.');
     }
 
@@ -228,7 +329,37 @@ class WorkOrderController extends Controller
         abort_unless($part->work_order_id === $order->id, 404);
         $part->delete();
         $order->recalcTotals();
+
+        if (request()->expectsJson()) {
+            return $this->cardsJson($order, 'Repuesto eliminado.');
+        }
         return back()->with('success', 'Repuesto eliminado.');
+    }
+
+    /** Respuesta JSON con los parciales re-renderizados (para altas/bajas AJAX). */
+    private function cardsJson(WorkOrder $order, string $message)
+    {
+        $order->refresh()->load(['services.mechanic', 'parts.product', 'mechanic']);
+        $data = $this->formData($order->company_id) + ['order' => $order];
+
+        return response()->json([
+            'ok'       => true,
+            'message'  => $message,
+            'services' => view('workshop.orders._services', $data)->render(),
+            'parts'    => view('workshop.orders._parts', $data)->render(),
+            'totals'   => view('workshop.orders._totals', $data)->render(),
+        ]);
+    }
+
+    /** Vista imprimible tamaño carta de la OT. */
+    public function print(WorkOrder $order)
+    {
+        $this->authorizeOrder($order);
+        $order->load([
+            'client', 'vehicle', 'mechanic', 'branch', 'company', 'createdBy',
+            'services.mechanic', 'parts.product',
+        ]);
+        return view('workshop.orders.print', compact('order'));
     }
 
     // ── Cambiar estado ────────────────────────────────────────

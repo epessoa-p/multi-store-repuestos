@@ -2,6 +2,10 @@
     $isEdit = isset($vehicle);
     $action = $isEdit ? route('vehicles.update', $vehicle) : route('vehicles.store');
     $method = $isEdit ? 'PUT' : 'POST';
+
+    $authUser        = auth()->user();
+    $canCreateClient = $authUser->is_super_admin
+        || $authUser->hasPermissionInCompany('clients.create', $authUser->getCurrentCompany());
 @endphp
 
 @if($errors->any())
@@ -31,9 +35,16 @@
                     <div class="row g-3">
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" for="client_id">
-                                Cliente <span class="text-danger">*</span>
-                            </label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0" for="client_id">
+                                    Cliente <span class="text-danger">*</span>
+                                </label>
+                                @if($canCreateClient)
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openQuickClient()">
+                                    <i class="bi bi-person-plus me-1"></i>Nuevo
+                                </button>
+                                @endif
+                            </div>
                             <select id="client_id" name="client_id"
                                     class="form-select @error('client_id') is-invalid @enderror" required>
                                 <option value="">— Seleccionar cliente —</option>
@@ -163,3 +174,120 @@
     </div>
 
 </form>
+
+{{-- ── Modal: alta rápida de cliente ──────────────────────────────── --}}
+@if($canCreateClient)
+<div class="modal fade" id="quickClientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-semibold"><i class="bi bi-person-plus me-2 text-primary"></i>Nuevo cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="qcAlert" class="alert alert-danger d-none py-2 small"></div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold small" for="qc_full_name">Nombre completo <span class="text-danger">*</span></label>
+                        <input type="text" id="qc_full_name" class="form-control" maxlength="255" placeholder="Ej: Juan Pérez">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small" for="qc_id_number">Documento</label>
+                        <input type="text" id="qc_id_number" class="form-control" maxlength="50" placeholder="CI / NIT">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small" for="qc_phone">Teléfono</label>
+                        <input type="text" id="qc_phone" class="form-control" maxlength="20" placeholder="Ej: 700-00000">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary px-4" id="qc_save" onclick="saveQuickClient()">
+                    <i class="bi bi-check-lg me-1"></i>Guardar y seleccionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+const QUICK_CSRF = '{{ csrf_token() }}';
+
+function quickToast(msg) {
+    let cont = document.getElementById('quickToastCont');
+    if (!cont) {
+        cont = document.createElement('div');
+        cont.id = 'quickToastCont';
+        cont.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:1090;display:flex;flex-direction:column;gap:.5rem;';
+        document.body.appendChild(cont);
+    }
+    const el = document.createElement('div');
+    el.style.cssText = 'background:#fff;border-left:4px solid #16a34a;box-shadow:0 6px 22px rgba(0,0,0,.16);border-radius:8px;padding:.7rem .9rem;font-size:.85rem;max-width:320px;display:flex;align-items:center;gap:.5rem;';
+    el.innerHTML = '<i class="bi bi-check-circle" style="color:#16a34a;"></i><span>' + msg + '</span>';
+    cont.appendChild(el);
+    setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+// Agrega una opción a un <select> (compatible con select2) y la selecciona.
+function addAndSelect(selectId, id, text) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    if (!sel.querySelector('option[value="' + id + '"]')) {
+        sel.appendChild(new Option(text, id, true, true));
+    }
+    if (window.jQuery && jQuery(sel).data('select2')) {
+        jQuery(sel).val(String(id)).trigger('change');
+    } else {
+        sel.value = String(id);
+        sel.dispatchEvent(new Event('change'));
+    }
+}
+
+function openQuickClient() {
+    ['qc_full_name', 'qc_id_number', 'qc_phone'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('qcAlert').classList.add('d-none');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('quickClientModal')).show();
+    setTimeout(() => document.getElementById('qc_full_name').focus(), 300);
+}
+
+function saveQuickClient() {
+    const name = document.getElementById('qc_full_name').value.trim();
+    const alertBox = document.getElementById('qcAlert');
+    alertBox.classList.add('d-none');
+    if (!name) { alertBox.textContent = 'El nombre es obligatorio.'; alertBox.classList.remove('d-none'); return; }
+
+    const btn = document.getElementById('qc_save');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando…';
+
+    fetch('{{ route('clients.quick-store') }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': QUICK_CSRF },
+        body: JSON.stringify({
+            full_name: name,
+            id_number: document.getElementById('qc_id_number').value.trim(),
+            phone:     document.getElementById('qc_phone').value.trim(),
+        }),
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+        if (!ok || !d.ok) {
+            const msg = d.message || (d.errors ? Object.values(d.errors).flat().join(' ') : 'No se pudo guardar.');
+            alertBox.textContent = msg;
+            alertBox.classList.remove('d-none');
+            return;
+        }
+        const label = d.client.full_name + (d.client.id_number ? ' (' + d.client.id_number + ')' : '');
+        addAndSelect('client_id', d.client.id, label);
+        bootstrap.Modal.getInstance(document.getElementById('quickClientModal'))?.hide();
+        quickToast('Cliente «' + d.client.full_name + '» creado y seleccionado.');
+    })
+    .catch(() => { alertBox.textContent = 'Error de conexión.'; alertBox.classList.remove('d-none'); })
+    .finally(() => { btn.disabled = false; btn.innerHTML = original; });
+}
+</script>
+@endpush
+@endif

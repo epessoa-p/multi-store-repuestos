@@ -391,6 +391,106 @@
     // Re-inicializar selects cuando se abre un modal (selects creados/ocultos)
     document.addEventListener('shown.bs.modal', function (e) { window.initSelect2(e.target); });
 
+    // ── Confirmación bonita (reemplaza el confirm() nativo del sistema) ──
+    (function () {
+        let resolver = null, modal = null, modalEl = null;
+
+        function ensureModal() {
+            if (modalEl) return;
+            modalEl = document.createElement('div');
+            modalEl.className = 'modal fade';
+            modalEl.id = 'appConfirmModal';
+            modalEl.tabIndex = -1;
+            modalEl.setAttribute('aria-hidden', 'true');
+            modalEl.innerHTML =
+                '<div class="modal-dialog modal-dialog-centered modal-sm">'
+              +   '<div class="modal-content border-0 shadow">'
+              +     '<div class="modal-body p-4 text-center">'
+              +       '<div id="acIcon" style="width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(225,6,0,.1);color:#e10600;font-size:1.6rem;margin-bottom:.75rem;"><i class="bi bi-exclamation-triangle"></i></div>'
+              +       '<h6 class="fw-bold mb-1" id="acTitle">¿Confirmar acción?</h6>'
+              +       '<p class="text-muted small mb-4" id="acMsg"></p>'
+              +       '<div class="d-flex gap-2">'
+              +         '<button type="button" class="btn btn-light border flex-fill" id="acCancel">Cancelar</button>'
+              +         '<button type="button" class="btn btn-danger flex-fill" id="acOk">Confirmar</button>'
+              +       '</div>'
+              +     '</div>'
+              +   '</div>'
+              + '</div>';
+            document.body.appendChild(modalEl);
+            modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
+            modalEl.querySelector('#acOk').addEventListener('click', function () { settle(true); });
+            modalEl.querySelector('#acCancel').addEventListener('click', function () { settle(false); });
+            modalEl.addEventListener('hidden.bs.modal', function () { settle(false); });
+        }
+
+        function settle(val) {
+            const r = resolver; resolver = null;
+            if (modal) modal.hide();
+            if (r) r(val);
+        }
+
+        // API pública: window.appConfirm({message, title, confirmText, variant}) => Promise<bool>
+        window.appConfirm = function (opts) {
+            opts = opts || {};
+            ensureModal();
+            modalEl.querySelector('#acTitle').textContent = opts.title || '¿Confirmar acción?';
+            modalEl.querySelector('#acMsg').textContent   = opts.message || '';
+            const ok = modalEl.querySelector('#acOk');
+            ok.textContent = opts.confirmText || 'Confirmar';
+            ok.className = 'btn flex-fill btn-' + (opts.variant || 'danger');
+            return new Promise(function (resolve) {
+                resolver = resolve;
+                modal.show();
+                setTimeout(function () { ok.focus(); }, 250);
+            });
+        };
+
+        function extractMsg(attr) {
+            if (!attr) return null;
+            const m = attr.match(/confirm\(\s*(['"`])([\s\S]*?)\1\s*\)/);
+            return m ? m[2] : null;
+        }
+
+        // Interceptar envíos de formularios con confirm(...) o data-confirm
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (!(form instanceof HTMLFormElement) || form.dataset.acConfirmed === '1') return;
+            const msg = form.getAttribute('data-confirm') || extractMsg(form.getAttribute('onsubmit'));
+            if (!msg) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            window.appConfirm({ message: msg }).then(function (ok) {
+                if (!ok) return;
+                form.removeAttribute('onsubmit');
+                form.dataset.acConfirmed = '1';
+                if (form.requestSubmit) form.requestSubmit(); else form.submit();
+            });
+        }, true);
+
+        // Interceptar clics con confirm(...) o data-confirm (botones submit y enlaces)
+        document.addEventListener('click', function (e) {
+            const el = e.target.closest('[onclick], [data-confirm]');
+            if (!el || el.dataset.acConfirmed === '1') return;
+            const msg = el.getAttribute('data-confirm') || extractMsg(el.getAttribute('onclick'));
+            if (!msg) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            window.appConfirm({ message: msg }).then(function (ok) {
+                if (!ok) return;
+                el.removeAttribute('onclick');
+                el.dataset.acConfirmed = '1';
+                const form = el.form || el.closest('form');
+                if (form && (el.type === 'submit' || el.tagName === 'BUTTON')) {
+                    if (form.requestSubmit) form.requestSubmit(el.type === 'submit' ? el : undefined); else form.submit();
+                } else if (el.tagName === 'A' && el.getAttribute('href')) {
+                    window.location = el.href;
+                } else {
+                    el.click();
+                }
+            });
+        }, true);
+    })();
+
     // ── Spinner global + deshabilitar botón al enviar formularios ────
     document.addEventListener('submit', function (e) {
         const form = e.target;

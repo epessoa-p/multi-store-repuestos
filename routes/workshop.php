@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('workshop/mechanics')->name('mechanics.')->group(function () {
         Route::get('/',               [MechanicController::class, 'index'])->name('index')->middleware('check-permission:mechanics.view');
         Route::get('/create',         [MechanicController::class, 'create'])->name('create')->middleware('check-permission:mechanics.create');
+        Route::post('/quick',         [MechanicController::class, 'quickStore'])->name('quick-store')->middleware('check-permission:mechanics.create');
         Route::post('/',              [MechanicController::class, 'store'])->name('store')->middleware('check-permission:mechanics.create');
         Route::get('/{mechanic}/edit',[MechanicController::class, 'edit'])->name('edit')->middleware('check-permission:mechanics.edit');
         Route::put('/{mechanic}',     [MechanicController::class, 'update'])->name('update')->middleware('check-permission:mechanics.edit');
@@ -51,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('workshop/orders')->name('workshop.orders.')->group(function () {
         Route::get('/',                     [WorkOrderController::class, 'index'])->name('index')->middleware('check-permission:workshop.view');
         Route::get('/{order}',              [WorkOrderController::class, 'show'])->name('show')->middleware('check-permission:workshop.view');
+        Route::get('/{order}/print',        [WorkOrderController::class, 'print'])->name('print')->middleware('check-permission:workshop.view');
         Route::get('/{order}/edit',         [WorkOrderController::class, 'edit'])->name('edit')->middleware('check-permission:workshop.edit');
         Route::put('/{order}',              [WorkOrderController::class, 'update'])->name('update')->middleware('check-permission:workshop.edit');
         Route::post('/{order}/diagnosis',   [WorkOrderController::class, 'diagnosis'])->name('diagnosis')->middleware('check-permission:workshop.edit');

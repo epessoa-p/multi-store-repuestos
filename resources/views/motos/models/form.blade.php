@@ -82,14 +82,14 @@
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="suggested_price">
-                                Precio sugerido <span class="text-danger">*</span>
+                                Precio sugerido
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light">$</span>
                                 <input type="number" id="suggested_price" name="suggested_price"
                                        class="form-control @error('suggested_price') is-invalid @enderror"
                                        value="{{ old('suggested_price', $isEdit ? $model->suggested_price : '') }}"
-                                       step="0.01" min="0" required
+                                       step="0.01" min="0"
                                        placeholder="0.00">
                             </div>
                             @error('suggested_price')<div class="invalid-feedback">{{ $message }}</div>@enderror

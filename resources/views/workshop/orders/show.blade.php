@@ -24,7 +24,8 @@
                 <div>
                     <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                         <h1 class="mb-0 fw-bold fs-4">{{ $order->code }}</h1>
-                        <span class="badge bg-{{ $order->status_color }}-subtle text-{{ $order->status_color }} border border-{{ $order->status_color }}-subtle">
+                        <span class="badge bg-{{ $order->status_color }}-subtle text-{{ $order->status_color }} border border-{{ $order->status_color }}-subtle"
+                              id="orderStatusBadge">
                             {{ $order->status_label }}
                         </span>
                         <span class="badge bg-{{ $order->payment_status_color }}-subtle text-{{ $order->payment_status_color }} border border-{{ $order->payment_status_color }}-subtle">
@@ -108,9 +109,9 @@
                     </form>
                     @endif
 
-                    <button onclick="window.print()" class="btn btn-light border btn-sm">
+                    <a href="{{ route('workshop.orders.print', $order) }}" target="_blank" class="btn btn-light border btn-sm">
                         <i class="bi bi-printer me-1"></i>Imprimir
-                    </button>
+                    </a>
                     <a href="{{ route('workshop.orders.index') }}" class="btn btn-light border btn-sm">
                         <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
@@ -125,9 +126,9 @@
         <div class="col-lg-8">
 
             {{-- Recepción --}}
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #14b8a6 !important;">
                 <div class="card-header bg-white border-bottom py-3 px-4">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-clipboard2 me-2 text-muted"></i>Recepción</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-clipboard2 me-2" style="color:#14b8a6;"></i>Recepción</h6>
                 </div>
                 <div class="card-body p-4">
                     <div class="row g-3">
@@ -162,18 +163,16 @@
             </div>
 
             {{-- Diagnóstico --}}
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #8b5cf6 !important;">
                 <div class="card-header bg-white border-bottom py-3 px-4">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-2 text-muted"></i>Diagnóstico</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-2" style="color:#8b5cf6;"></i>Diagnóstico</h6>
                 </div>
                 <div class="card-body p-4">
-                    @if($order->diagnosis)
-                    <p class="small mb-3">{{ $order->diagnosis }}</p>
-                    @else
-                    <p class="text-muted small mb-3"><em>Sin diagnóstico registrado.</em></p>
-                    @endif
+                    <p class="small mb-3 {{ $order->diagnosis ? '' : 'text-muted' }}" id="diagnosisText">
+                        @if($order->diagnosis){{ $order->diagnosis }}@else<em>Sin diagnóstico registrado.</em>@endif
+                    </p>
                     @if($editable && $canEdit)
-                    <form action="{{ route('workshop.orders.diagnosis', $order) }}" method="POST" class="no-print">
+                    <form action="{{ route('workshop.orders.diagnosis', $order) }}" method="POST" class="no-print wo-diagnosis-form" id="diagnosisForm">
                         @csrf
                         <div class="d-flex gap-2 align-items-start">
                             <textarea name="diagnosis" rows="2"
@@ -188,211 +187,14 @@
                 </div>
             </div>
 
-            {{-- Servicios --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-bottom py-3 px-4">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-gear me-2 text-muted"></i>Servicios</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0" style="font-size:.85rem;">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-4 py-3 fw-semibold text-muted text-uppercase" style="font-size:.72rem;">Descripción</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase" style="font-size:.72rem;">Mecánico</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-end" style="font-size:.72rem;">Precio</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-center" style="font-size:.72rem;">Cant.</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-end" style="font-size:.72rem;">Subtotal</th>
-                                    @if($editable && $canEdit)
-                                    <th class="py-3 pe-3" style="width:44px;"></th>
-                                    @endif
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($order->services as $svc)
-                                <tr class="border-bottom border-light">
-                                    <td class="ps-4 py-2 small">{{ $svc->pivot->description ?? $svc->name }}</td>
-                                    <td class="py-2 small text-muted">{{ $svc->pivot->mechanic?->name ?? '—' }}</td>
-                                    <td class="py-2 text-end small">${{ number_format($svc->pivot->price ?? $svc->price, 2) }}</td>
-                                    <td class="py-2 text-center small">{{ $svc->pivot->quantity ?? 1 }}</td>
-                                    <td class="py-2 text-end fw-semibold small">
-                                        ${{ number_format(($svc->pivot->price ?? $svc->price) * ($svc->pivot->quantity ?? 1), 2) }}
-                                    </td>
-                                    @if($editable && $canEdit)
-                                    <td class="py-2 pe-3">
-                                        <form action="{{ route('workshop.orders.services.remove', [$order, $svc]) }}" method="POST" class="d-inline no-print"
-                                              onsubmit="return confirm('¿Quitar este servicio?')">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-light border text-danger py-0 px-1">
-                                                <i class="bi bi-x"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                    @endif
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="{{ $editable && $canEdit ? 6 : 5 }}" class="text-center py-4 text-muted">
-                                        <i class="bi bi-gear d-block fs-3 mb-1 opacity-25"></i>
-                                        Sin servicios agregados.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {{-- Add service form --}}
-                @if($editable && $canEdit)
-                <div class="card-footer bg-light border-top p-4 no-print">
-                    <p class="small fw-semibold mb-3"><i class="bi bi-plus-circle me-1 text-muted"></i>Agregar servicio</p>
-                    <form action="{{ route('workshop.orders.services.add', $order) }}" method="POST">
-                        @csrf
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-3">
-                                <label class="form-label form-label-sm fw-semibold">Servicio</label>
-                                <select name="service_id" class="form-select form-select-sm" id="svcSelect"
-                                        onchange="onSvcChange()">
-                                    <option value="">— Seleccionar —</option>
-                                    @foreach($services as $s)
-                                    <option value="{{ $s->id }}" data-price="{{ $s->price }}" data-name="{{ $s->name }}">
-                                        {{ $s->name }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label form-label-sm fw-semibold">Descripción</label>
-                                <input type="text" name="description" id="svcDesc" class="form-control form-control-sm"
-                                       placeholder="Descripción del servicio">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label form-label-sm fw-semibold">Precio</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-white">$</span>
-                                    <input type="number" name="price" id="svcPrice" class="form-control"
-                                           step="0.01" min="0" placeholder="0.00">
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                <label class="form-label form-label-sm fw-semibold">Cant.</label>
-                                <input type="number" name="quantity" class="form-control form-control-sm"
-                                       min="1" step="1" inputmode="numeric" value="1">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label form-label-sm fw-semibold">Mecánico</label>
-                                <select name="mechanic_id" class="form-select form-select-sm">
-                                    <option value="">Sin asignar</option>
-                                    @foreach($mechanics as $m)
-                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-1">
-                                <button type="submit" class="btn btn-primary btn-sm w-100">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                @endif
+            {{-- Servicios (AJAX, parcial reutilizable) --}}
+            <div id="servicesCard">
+                @include('workshop.orders._services')
             </div>
 
-            {{-- Repuestos --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-bottom py-3 px-4">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2 text-muted"></i>Repuestos</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0" style="font-size:.85rem;">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-4 py-3 fw-semibold text-muted text-uppercase" style="font-size:.72rem;">Producto</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-center" style="font-size:.72rem;">Cant.</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-end" style="font-size:.72rem;">Precio</th>
-                                    <th class="py-3 fw-semibold text-muted text-uppercase text-end" style="font-size:.72rem;">Subtotal</th>
-                                    @if($editable && $canEdit)
-                                    <th class="py-3 pe-3" style="width:44px;"></th>
-                                    @endif
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($order->parts as $part)
-                                <tr class="border-bottom border-light">
-                                    <td class="ps-4 py-2 small fw-semibold">{{ $part->product?->name ?? '—' }}</td>
-                                    <td class="py-2 text-center small">{{ $part->quantity }}</td>
-                                    <td class="py-2 text-end small">${{ number_format($part->unit_price, 2) }}</td>
-                                    <td class="py-2 text-end fw-semibold small">${{ number_format($part->quantity * $part->unit_price, 2) }}</td>
-                                    @if($editable && $canEdit)
-                                    <td class="py-2 pe-3">
-                                        <form action="{{ route('workshop.orders.parts.remove', [$order, $part]) }}" method="POST" class="d-inline no-print"
-                                              onsubmit="return confirm('¿Quitar este repuesto?')">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-light border text-danger py-0 px-1">
-                                                <i class="bi bi-x"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                    @endif
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="{{ $editable && $canEdit ? 5 : 4 }}" class="text-center py-4 text-muted">
-                                        <i class="bi bi-box-seam d-block fs-3 mb-1 opacity-25"></i>
-                                        Sin repuestos agregados.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                @if($editable && $canEdit)
-                <div class="card-footer bg-light border-top p-4 no-print">
-                    <p class="small fw-semibold mb-1"><i class="bi bi-plus-circle me-1 text-muted"></i>Agregar repuesto</p>
-                    <p class="text-muted small mb-3">El stock se descuenta al entregar la OT.</p>
-                    <form action="{{ route('workshop.orders.parts.add', $order) }}" method="POST">
-                        @csrf
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-5">
-                                <label class="form-label form-label-sm fw-semibold">Producto</label>
-                                <select name="product_id" class="form-select form-select-sm" id="partSelect"
-                                        onchange="onPartChange()">
-                                    <option value="">— Seleccionar producto —</option>
-                                    @foreach($products as $p)
-                                    <option value="{{ $p->id }}"
-                                            data-price="{{ $p->price }}"
-                                            data-stock="{{ $p->current_stock }}">
-                                        {{ $p->name }} (stock: {{ $p->current_stock }})
-                                    </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label form-label-sm fw-semibold">Cantidad</label>
-                                <input type="number" name="quantity" class="form-control form-control-sm"
-                                       min="1" step="1" inputmode="numeric" value="1">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label form-label-sm fw-semibold">Precio unitario</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-white">$</span>
-                                    <input type="number" name="unit_price" id="partPrice" class="form-control"
-                                           step="0.01" min="0" placeholder="0.00">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary btn-sm w-100">
-                                    <i class="bi bi-plus-lg me-1"></i>Agregar
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                @endif
+            {{-- Repuestos (AJAX, parcial reutilizable) --}}
+            <div id="partsCard">
+                @include('workshop.orders._parts')
             </div>
 
         </div>
@@ -478,45 +280,9 @@
                     </div>
                 </div>
 
-                {{-- Totales --}}
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white border-bottom py-3 px-4">
-                        <h6 class="mb-0 fw-semibold"><i class="bi bi-calculator me-2 text-muted"></i>Totales</h6>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between mb-2 small">
-                            <span class="text-muted">Subtotal servicios</span>
-                            <span class="fw-semibold">${{ number_format($order->subtotal_services, 2) }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2 small">
-                            <span class="text-muted">Subtotal repuestos</span>
-                            <span class="fw-semibold">${{ number_format($order->subtotal_parts, 2) }}</span>
-                        </div>
-                        @if($order->discount)
-                        <div class="d-flex justify-content-between mb-2 small">
-                            <span class="text-muted">Descuento</span>
-                            <span class="fw-semibold text-danger">-${{ number_format($order->discount, 2) }}</span>
-                        </div>
-                        @endif
-                        @if($order->tax)
-                        <div class="d-flex justify-content-between mb-2 small">
-                            <span class="text-muted">Impuesto</span>
-                            <span class="fw-semibold">${{ number_format($order->tax, 2) }}</span>
-                        </div>
-                        @endif
-                        <div class="d-flex justify-content-between fw-bold border-top pt-2 mb-2">
-                            <span>Total</span>
-                            <span class="fs-6">${{ number_format($order->total, 2) }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2 small text-success">
-                            <span>Pagado</span>
-                            <span class="fw-semibold">${{ number_format($order->paid_amount, 2) }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between fw-bold border-top pt-2 {{ $order->balance > 0 ? 'text-danger' : 'text-muted' }}">
-                            <span>Saldo</span>
-                            <span>${{ number_format($order->balance, 2) }}</span>
-                        </div>
-                    </div>
+                {{-- Totales (se actualiza por AJAX) --}}
+                <div id="totalsCard">
+                    @include('workshop.orders._totals')
                 </div>
 
                 {{-- Cuotas --}}
@@ -722,24 +488,147 @@
 
 @push('scripts')
 <script>
-function onSvcChange() {
-    const sel = document.getElementById('svcSelect');
-    const opt = sel.options[sel.selectedIndex];
-    const price = opt.dataset.price || '';
-    const name  = opt.dataset.name  || '';
-    const priceInput = document.getElementById('svcPrice');
-    const descInput  = document.getElementById('svcDesc');
-    if (price && !priceInput.value) priceInput.value = parseFloat(price).toFixed(2);
-    if (name  && !descInput.value)  descInput.value  = name;
-}
+(function () {
+    'use strict';
+    const CSRF = '{{ csrf_token() }}';
 
-function onPartChange() {
-    const sel = document.getElementById('partSelect');
-    const opt = sel.options[sel.selectedIndex];
-    const price = opt.dataset.price || '';
-    const priceInput = document.getElementById('partPrice');
-    if (price) priceInput.value = parseFloat(price).toFixed(2);
-}
+    // ── Toast ────────────────────────────────────────────────────────
+    function toast(msg, ok) {
+        let cont = document.getElementById('woToastCont');
+        if (!cont) {
+            cont = document.createElement('div');
+            cont.id = 'woToastCont';
+            cont.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:1090;display:flex;flex-direction:column;gap:.5rem;';
+            document.body.appendChild(cont);
+        }
+        const color = ok === false ? '#e11d48' : '#16a34a';
+        const icon  = ok === false ? 'bi-x-octagon' : 'bi-check-circle';
+        const el = document.createElement('div');
+        el.style.cssText = 'background:#fff;border-left:4px solid ' + color + ';box-shadow:0 6px 22px rgba(0,0,0,.16);border-radius:8px;padding:.7rem .9rem;font-size:.85rem;max-width:340px;display:flex;align-items:center;gap:.5rem;';
+        el.innerHTML = '<i class="bi ' + icon + '" style="color:' + color + ';"></i><span>' + msg + '</span>';
+        cont.appendChild(el);
+        setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3200);
+    }
+
+    // ── Autollenado de precio en el form de servicios (datalist) ──────
+    function svcPriceMap() {
+        const map = {};
+        document.querySelectorAll('#svcOptions option').forEach(o => {
+            if (o.value) map[o.value.trim().toLowerCase()] = o.dataset.price || '';
+        });
+        return map;
+    }
+    function bindServiceAutofill() {
+        const name  = document.querySelector('.wo-svc-name');
+        const price = document.querySelector('.wo-svc-price');
+        if (!name || !price) return;
+        const map = svcPriceMap();
+        name.addEventListener('input', function () {
+            const p = map[this.value.trim().toLowerCase()];
+            if (p && !price.value) price.value = parseFloat(p).toFixed(2);
+        });
+    }
+    // ── Autollenado de precio en el form de repuestos ─────────────────
+    // El select usa select2, que dispara 'change' vía jQuery: hay que
+    // escucharlo con jQuery (un addEventListener nativo no lo captura).
+    function bindPartAutofill() {
+        const sel   = document.querySelector('.wo-part-select');
+        const price = document.querySelector('.wo-part-price');
+        if (!sel || !price) return;
+        const handler = function () {
+            const opt = sel.options[sel.selectedIndex];
+            const p = opt ? (opt.dataset.price || '') : '';
+            if (p !== '') price.value = parseFloat(p).toFixed(2);
+        };
+        if (window.jQuery) jQuery(sel).off('change.woPart').on('change.woPart', handler);
+        else sel.addEventListener('change', handler);
+    }
+
+    function bindAll() { bindServiceAutofill(); bindPartAutofill(); }
+
+    // ── Envío AJAX de altas/bajas de servicios y repuestos ────────────
+    document.addEventListener('submit', function (e) {
+        const form = e.target.closest('.wo-ajax-form');
+        if (!form) return;
+        e.preventDefault();
+
+        const btn = form.querySelector('[type="submit"]');
+        const original = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form),
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok || !d.ok) {
+                const msg = d.message || (d.errors ? Object.values(d.errors).flat().join(' ') : 'No se pudo completar la acción.');
+                toast(msg, false);
+                if (btn) { btn.disabled = false; btn.innerHTML = original; }
+                return;
+            }
+            document.getElementById('servicesCard').innerHTML = d.services;
+            document.getElementById('partsCard').innerHTML    = d.parts;
+            document.getElementById('totalsCard').innerHTML   = d.totals;
+            bindAll();
+            if (window.initSelect2) window.initSelect2(document.getElementById('partsCard'));
+            toast(d.message || 'Listo.');
+        })
+        .catch(() => {
+            toast('Error de conexión.', false);
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+        });
+    });
+
+    // ── Diagnóstico por AJAX (sin recargar) ───────────────────────────
+    document.addEventListener('submit', function (e) {
+        const form = e.target.closest('.wo-diagnosis-form');
+        if (!form) return;
+        e.preventDefault();
+
+        const btn = form.querySelector('[type="submit"]');
+        const original = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form),
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+            if (!ok || !d.ok) {
+                toast(d.message || (d.errors ? Object.values(d.errors).flat().join(' ') : 'No se pudo guardar.'), false);
+                return;
+            }
+            const txt = document.getElementById('diagnosisText');
+            if (txt) {
+                if (d.diagnosis && d.diagnosis.trim()) {
+                    txt.textContent = d.diagnosis;
+                    txt.classList.remove('text-muted');
+                } else {
+                    txt.innerHTML = '<em>Sin diagnóstico registrado.</em>';
+                    txt.classList.add('text-muted');
+                }
+            }
+            const badge = document.getElementById('orderStatusBadge');
+            if (badge && d.status_label) {
+                badge.textContent = d.status_label;
+                badge.className = 'badge bg-' + d.status_color + '-subtle text-' + d.status_color + ' border border-' + d.status_color + '-subtle';
+            }
+            toast(d.message || 'Diagnóstico guardado.');
+        })
+        .catch(() => {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+            toast('Error de conexión.', false);
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', bindAll);
+})();
 </script>
 @endpush
 

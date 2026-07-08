@@ -67,15 +67,20 @@ class MotoModelController extends Controller
 
     private function validateModel(): array
     {
-        return request()->validate([
+        $data = request()->validate([
             'moto_brand_id'   => 'required|exists:moto_brands,id',
             'name'            => 'required|string|max:255',
             'engine_cc'       => 'nullable|string|max:30',
             'year'            => 'nullable|integer|min:1900|max:2100',
-            'suggested_price' => 'required|numeric|min:0',
+            'suggested_price' => 'nullable|numeric|min:0',
             'description'     => 'nullable|string',
             'active'          => 'sometimes|boolean',
         ]);
+
+        // La columna es NOT NULL DEFAULT 0.00: si no se indica, guardar 0.
+        $data['suggested_price'] = $data['suggested_price'] ?? 0;
+
+        return $data;
     }
 
     private function authorizeModel(MotoModel $model): void

@@ -23,6 +23,45 @@ class MechanicController extends Controller
         return view('workshop.mechanics.create');
     }
 
+    /** Alta rápida (AJAX) desde otros formularios, ej. recepción de taller. */
+    public function quickStore()
+    {
+        $user      = auth()->user();
+        $companyId = $user->is_super_admin ? request('company_id') : $user->getCurrentCompany()?->id;
+
+        if (!$companyId) {
+            return response()->json(['ok' => false, 'message' => 'No hay una empresa activa.'], 422);
+        }
+
+        $validated = request()->validate([
+            'name'      => 'required|string|max:255',
+            'specialty' => 'nullable|string|max:150',
+            'phone'     => 'nullable|string|max:30',
+        ]);
+
+        try {
+            $mechanic = Mechanic::create([
+                'company_id' => $companyId,
+                'name'       => $validated['name'],
+                'specialty'  => $validated['specialty'] ?? null,
+                'phone'      => $validated['phone'] ?? null,
+                'active'     => true,
+            ]);
+
+            return response()->json([
+                'ok'       => true,
+                'mechanic' => [
+                    'id'        => $mechanic->id,
+                    'name'      => $mechanic->name,
+                    'specialty' => $mechanic->specialty,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error en alta rápida de mecánico', ['msg' => $e->getMessage()]);
+            return response()->json(['ok' => false, 'message' => 'Error al guardar el mecánico.'], 500);
+        }
+    }
+
     public function store()
     {
         $companyId = auth()->user()->getCurrentCompany()?->id;

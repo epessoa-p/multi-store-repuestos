@@ -3,9 +3,10 @@
     $action = $isEdit ? route('moto-units.update', $unit) : route('moto-units.store');
     $method = $isEdit ? 'PUT' : 'POST';
 
-    // Marca filtra al modelo (la unidad no guarda marca: proviene del modelo).
+    // La marca es solo una ayuda visual: resalta sus modelos, pero se puede
+    // elegir cualquier modelo (la unidad no guarda marca: proviene del modelo).
     $currentModelId = (string) old('moto_model_id', $isEdit ? $unit->moto_model_id : '');
-    $brandList      = $models->map(fn ($m) => $m->brand)->filter()->unique('id')->sortBy('name')->values();
+    $brandList      = ($brands ?? collect())->sortBy('name')->values();
     $currentBrandId = (string) (optional($models->firstWhere('id', (int) $currentModelId))->moto_brand_id
                         ?? old('moto_brand_filter', ''));
 @endphp
@@ -59,6 +60,7 @@
                                 <option value="">— Seleccionar modelo —</option>
                                 @foreach($models as $m)
                                 <option value="{{ $m->id }}" data-brand="{{ $m->moto_brand_id }}"
+                                        data-price="{{ $m->suggested_price }}"
                                         {{ $currentModelId === (string) $m->id ? 'selected' : '' }}>
                                     {{ $m->display_name }}
                                 </option>
@@ -116,6 +118,18 @@
                                    maxlength="80"
                                    placeholder="Ej: Rojo/Negro">
                             @error('color')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="placa">Placa</label>
+                            <input type="text" id="placa" name="placa"
+                                   class="form-control font-monospace @error('placa') is-invalid @enderror"
+                                   value="{{ old('placa', $isEdit ? $unit->placa : '') }}"
+                                   maxlength="20"
+                                   placeholder="Ej: 1234-ABC"
+                                   style="text-transform:uppercase;"
+                                   oninput="this.value=this.value.toUpperCase()">
+                            @error('placa')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-4">
@@ -225,10 +239,15 @@
     const modelSel = document.getElementById('moto_model_id');
     if (!brandSel || !modelSel) return;
 
-    // Copia de todas las opciones de modelo (con su marca)
+    // Copia de todas las opciones de modelo (con su marca y precio sugerido)
     const allOpts = Array.from(modelSel.options)
         .filter(o => o.value)
-        .map(o => ({ value: o.value, text: o.textContent.trim(), brand: o.getAttribute('data-brand') || '' }));
+        .map(o => ({
+            value: o.value,
+            text:  o.textContent.trim(),
+            brand: o.getAttribute('data-brand') || '',
+            price: o.getAttribute('data-price') || '',
+        }));
 
     function refreshSelect2(el) {
         if (window.jQuery && jQuery.fn.select2) {
@@ -239,23 +258,64 @@
         }
     }
 
-    function filterModels(keepValue) {
-        const brand = brandSel.value;
+    function makeOpt(o, keepValue, related) {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.text;
+        opt.setAttribute('data-brand', o.brand);
+        opt.setAttribute('data-price', o.price || '');
+        if (related) opt.setAttribute('data-related', '1');
+        if (o.value === keepValue) opt.selected = true;
+        return opt;
+    }
+
+    // Muestra TODOS los modelos; si hay una marca elegida, agrupa arriba los
+    // relacionados (resaltados) y deja el resto en "Otros modelos". No filtra.
+    function highlightModels(keepValue) {
+        const brand     = brandSel.value;
+        const brandName = (brandSel.options[brandSel.selectedIndex]?.textContent || '').trim();
         modelSel.innerHTML = '<option value="">— Seleccionar modelo —</option>';
-        allOpts.filter(o => !brand || o.brand === brand).forEach(o => {
-            const opt = document.createElement('option');
-            opt.value = o.value; opt.textContent = o.text; opt.setAttribute('data-brand', o.brand);
-            if (o.value === keepValue) opt.selected = true;
-            modelSel.appendChild(opt);
-        });
+
+        if (!brand) {
+            allOpts.forEach(o => modelSel.appendChild(makeOpt(o, keepValue)));
+        } else {
+            const related = allOpts.filter(o => o.brand === brand);
+            const others  = allOpts.filter(o => o.brand !== brand);
+
+            if (related.length) {
+                const g = document.createElement('optgroup');
+                g.label = '★ ' + (brandName ? 'Modelos de ' + brandName : 'Relacionados') + ' (' + related.length + ')';
+                related.forEach(o => g.appendChild(makeOpt(o, keepValue, true)));
+                modelSel.appendChild(g);
+            }
+            if (others.length) {
+                const g = document.createElement('optgroup');
+                g.label = 'Otros modelos';
+                others.forEach(o => g.appendChild(makeOpt(o, keepValue)));
+                modelSel.appendChild(g);
+            }
+        }
         refreshSelect2(modelSel);
     }
 
-    // Al cambiar la marca, limpiar el modelo seleccionado
-    brandSel.addEventListener('change', () => filterModels(''));
+    // Al cambiar la marca, re-resaltar SIN perder el modelo ya seleccionado.
+    brandSel.addEventListener('change', () => highlightModels(modelSel.value));
 
-    // Estado inicial (edición / old input): filtrar conservando el modelo actual
-    document.addEventListener('DOMContentLoaded', () => filterModels(modelSel.value));
+    // Estado inicial (edición / old input): resaltar conservando el modelo actual.
+    document.addEventListener('DOMContentLoaded', () => highlightModels(modelSel.value));
+
+    // ── Auto-rellenar el Precio de la unidad con el precio sugerido del modelo ──
+    // Se sugiere al elegir un modelo; si el usuario ya escribió un precio, no se pisa.
+    const priceInput = document.getElementById('price');
+    let priceTouched = !!(priceInput && priceInput.value.trim() !== '');
+    if (priceInput) priceInput.addEventListener('input', () => { priceTouched = true; });
+
+    modelSel.addEventListener('change', function () {
+        if (!priceInput || priceTouched) return;
+        const opt = modelSel.options[modelSel.selectedIndex];
+        const sp  = opt ? parseFloat(opt.getAttribute('data-price') || '') : NaN;
+        if (!isNaN(sp) && sp > 0) priceInput.value = sp.toFixed(2);
+    });
 })();
 </script>
 @endpush

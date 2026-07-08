@@ -94,21 +94,27 @@
     }
 
     function confirmRedeem(rewardId, btn) {
-        if (!confirm('¿Confirmar el canje de esta recompensa?')) return;
-        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        fetch(storeUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
-            body: JSON.stringify({ client_id: currentClient, reward_id: rewardId, branch_id: branchId || null }),
-        })
-        .then(r => r.json().then(d => ({ ok: r.ok, d })))
-        .then(({ ok, d }) => {
-            if (!ok || !d.ok) { (window.showToast || alert)(d.message || 'No se pudo canjear.', 'danger'); loadData(currentClient); return; }
-            (window.showToast || alert)(d.message, 'success');
-            render(d.balance, []); // recargar
-            loadData(currentClient);
-        })
-        .catch(() => (window.showToast || alert)('Error de conexión.', 'danger'));
+        const doRedeem = function () {
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            fetch(storeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                body: JSON.stringify({ client_id: currentClient, reward_id: rewardId, branch_id: branchId || null }),
+            })
+            .then(r => r.json().then(d => ({ ok: r.ok, d })))
+            .then(({ ok, d }) => {
+                if (!ok || !d.ok) { (window.showToast || alert)(d.message || 'No se pudo canjear.', 'danger'); loadData(currentClient); return; }
+                (window.showToast || alert)(d.message, 'success');
+                render(d.balance, []); // recargar
+                loadData(currentClient);
+            })
+            .catch(() => (window.showToast || alert)('Error de conexión.', 'danger'));
+        };
+
+        const ask = window.appConfirm
+            ? window.appConfirm({ title: 'Confirmar canje', message: '¿Confirmar el canje de esta recompensa?', confirmText: 'Canjear', variant: 'primary' })
+            : Promise.resolve(confirm('¿Confirmar el canje de esta recompensa?'));
+        ask.then(function (ok) { if (ok) doRedeem(); });
     }
 })();
 </script>
