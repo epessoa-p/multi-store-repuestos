@@ -517,6 +517,47 @@
             });
         }
     });
+    // ── Mayúsculas automáticas en campos de texto ───────────────────
+    //  Aplica a inputs de texto y textareas (nombres, descripciones,
+    //  detalles, direcciones…). NO aplica a: email, usuario, contraseña,
+    //  buscadores, URLs ni campos marcados con data-no-uppercase.
+    (function () {
+        const SKIP_RE = /(email|correo|e-?mail|username|usuario|user_name|login|password|contrase|\burl\b|slug|token|search|buscar|website)/i;
+
+        function shouldUppercase(el) {
+            if (!el) return false;
+            const tag = el.tagName;
+            if (tag === 'INPUT') {
+                const type = (el.getAttribute('type') || 'text').toLowerCase();
+                if (type !== 'text') return false;   // excluye email, password, number, search, tel, url, date…
+            } else if (tag !== 'TEXTAREA') {
+                return false;
+            }
+            if (el.readOnly || el.disabled) return false;
+            if (el.hasAttribute('data-no-uppercase')) return false;
+
+            const ac = (el.getAttribute('autocomplete') || '').toLowerCase();
+            if (ac.includes('username') || ac.includes('email') || ac.includes('password') || ac.includes('current-password') || ac.includes('new-password')) return false;
+
+            const key = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+            if (SKIP_RE.test(key)) return false;
+
+            const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+            if (/buscar|search/.test(ph)) return false;   // buscadores por placeholder
+
+            return true;
+        }
+
+        document.addEventListener('input', function (e) {
+            const el = e.target;
+            if (!shouldUppercase(el)) return;
+            const up = el.value.toUpperCase();
+            if (up === el.value) return;
+            const s = el.selectionStart, en = el.selectionEnd;
+            el.value = up;
+            try { el.setSelectionRange(s, en); } catch (_) {}
+        }, true);
+    })();
     </script>
 
     @stack('scripts')
