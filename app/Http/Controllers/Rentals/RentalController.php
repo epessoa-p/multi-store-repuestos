@@ -39,12 +39,28 @@ class RentalController extends Controller
     // ── Reservas ──────────────────────────────────────────────
     public function reservations(Request $request)
     {
-        $contracts = $this->scopedContracts()
-            ->where('status', 'reservada')
-            ->orderBy('start_date')
-            ->paginate(15);
+        $statuses = RentalContract::STATUSES;
 
-        return view('rentals.reservations.index', compact('contracts'));
+        // Filtro por estado; si no es válido, se muestran todos.
+        $activeStatus = $request->get('status');
+        if (!array_key_exists($activeStatus, $statuses)) {
+            $activeStatus = null;
+        }
+
+        // Conteo por estado (para los pills).
+        $counts = $this->scopedContracts()
+            ->getQuery()
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $contracts = $this->scopedContracts()
+            ->when($activeStatus, fn ($q) => $q->where('status', $activeStatus))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('rentals.reservations.index', compact('contracts', 'statuses', 'activeStatus', 'counts'));
     }
 
     public function create()

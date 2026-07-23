@@ -425,28 +425,8 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('rentals.reservations') || request()->routeIs('rentals.create') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}">
-                    <i class="bi bi-bookmark-plus"></i> Reservas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('rentals.contracts') ? 'active' : '' }}" href="{{ route('rentals.contracts') }}">
-                    <i class="bi bi-file-earmark-text"></i> Contratos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('rentals.deliveries') ? 'active' : '' }}" href="{{ route('rentals.deliveries') }}">
-                    <i class="bi bi-box-arrow-up"></i> Entregas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('rentals.active') ? 'active' : '' }}" href="{{ route('rentals.active') }}">
-                    <i class="bi bi-bicycle"></i> En curso
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link app-link {{ request()->routeIs('rentals.returns') ? 'active' : '' }}" href="{{ route('rentals.returns') }}">
-                    <i class="bi bi-box-arrow-in-down"></i> Devoluciones
+                <a class="nav-link app-link {{ request()->routeIs('rentals.reservations', 'rentals.create', 'rentals.contracts', 'rentals.active', 'rentals.deliveries', 'rentals.returns', 'rentals.deliver', 'rentals.return') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}">
+                    <i class="bi bi-card-list"></i> Alquileres
                 </a>
             </li>
             <li class="nav-item">
@@ -857,11 +837,7 @@
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.dashboard') ? 'active' : '' }}" href="{{ route('rentals.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
                 @endif
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.calendar') ? 'active' : '' }}" href="{{ route('rentals.calendar') }}"><i class="bi bi-calendar3 me-2"></i>Calendario</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('rentals.reservations') || request()->routeIs('rentals.create') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}"><i class="bi bi-bookmark-plus me-2"></i>Reservas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('rentals.contracts') ? 'active' : '' }}" href="{{ route('rentals.contracts') }}"><i class="bi bi-file-earmark-text me-2"></i>Contratos</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('rentals.deliveries') ? 'active' : '' }}" href="{{ route('rentals.deliveries') }}"><i class="bi bi-box-arrow-up me-2"></i>Entregas</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('rentals.active') ? 'active' : '' }}" href="{{ route('rentals.active') }}"><i class="bi bi-bicycle me-2"></i>En curso</a></li>
-                <li><a class="nav-link app-link {{ request()->routeIs('rentals.returns') ? 'active' : '' }}" href="{{ route('rentals.returns') }}"><i class="bi bi-box-arrow-in-down me-2"></i>Devoluciones</a></li>
+                <li><a class="nav-link app-link {{ request()->routeIs('rentals.reservations', 'rentals.create', 'rentals.contracts', 'rentals.active', 'rentals.deliveries', 'rentals.returns', 'rentals.deliver', 'rentals.return') ? 'active' : '' }}" href="{{ route('rentals.reservations') }}"><i class="bi bi-card-list me-2"></i>Alquileres</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.collections') ? 'active' : '' }}" href="{{ route('rentals.collections') }}"><i class="bi bi-cash-stack me-2"></i>Cobros</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.payments') ? 'active' : '' }}" href="{{ route('rentals.payments') }}"><i class="bi bi-cash-coin me-2"></i>Pagos</a></li>
                 <li><a class="nav-link app-link {{ request()->routeIs('rentals.penalties') ? 'active' : '' }}" href="{{ route('rentals.penalties') }}"><i class="bi bi-exclamation-triangle me-2"></i>Penalizaciones</a></li>
@@ -1251,16 +1227,39 @@
         justify-content: space-between;
         cursor: pointer;
         user-select: none;
-        transition: color .15s ease;
+        padding: 7px 12px;
+        border-radius: 8px;
+        transition: background .18s ease, color .15s ease;
     }
     .sidebar-section-title:hover { color: #b9b9bf; }
     .sidebar-section-title .sec-chevron {
         font-size: 0.6rem;
         opacity: 0.55;
-        transition: transform .2s ease;
+        transition: transform .2s ease, opacity .15s ease;
     }
     .sidebar-section-title.collapsed .sec-chevron { transform: rotate(-90deg); }
     .nav-section-hidden { display: none !important; }
+
+    /* Sección EXPANDIDA: se agrupa como una tarjeta sutil (encabezado + cuerpo),
+       para que se vea dónde empieza y termina cada sección. */
+    .sidebar-section-title:not(.collapsed) {
+        background: rgba(255, 255, 255, .06);
+        color: #e8e8ee;
+        border-radius: 8px 8px 0 0;
+    }
+    .sidebar-section-title:not(.collapsed) .sec-chevron { opacity: .9; }
+    .sidebar-section-title:not(.collapsed) + .nav {
+        background: rgba(255, 255, 255, .028);
+        box-shadow: inset 2px 0 0 rgba(255, 255, 255, .12);
+        border-radius: 0 0 8px 8px;
+        padding: 6px 6px 8px;
+        margin-bottom: 12px;
+    }
+    /* Sección COLAPSADA: plana, solo el rótulo (sin caja) */
+    .sidebar-section-title.collapsed {
+        background: transparent;
+        margin-bottom: 2px;
+    }
 
     /* ── Toast emergente (mensaje de éxito) ─────────────────────── */
     .app-toast {

@@ -111,6 +111,7 @@ class RentalContract extends Model
     public function getPaymentStatusLabelAttribute(): string { return self::PAYMENT_STATUSES[$this->payment_status]['label'] ?? $this->payment_status; }
     public function getPaymentStatusColorAttribute(): string { return self::PAYMENT_STATUSES[$this->payment_status]['color'] ?? 'secondary'; }
     public function getDepositStatusLabelAttribute(): string  { return self::DEPOSIT_STATUSES[$this->deposit_status]['label'] ?? $this->deposit_status; }
+    public function getDepositStatusColorAttribute(): string  { return self::DEPOSIT_STATUSES[$this->deposit_status]['color'] ?? 'secondary'; }
 
     /** Recalcula total (alquiler + penalizaciones) y estado de pago */
     public function recalcTotals(): void

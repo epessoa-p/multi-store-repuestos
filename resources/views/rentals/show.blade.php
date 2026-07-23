@@ -3,7 +3,6 @@
 @section('page')
 @php
     $company = auth()->user()->getCurrentCompany();
-    $canPay   = auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals.pay', $company);
     $canEdit  = auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals.edit', $company);
     $canDeliver = auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals.deliver', $company);
     $canReturn  = auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('rentals.return', $company);
@@ -71,9 +70,6 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar2-week me-2 text-muted"></i>Calendario de renta</h6>
-                    @if($canPay && in_array($rental->status, ['contrato','entregada']) && $rental->balance > 0.01)
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#payModal"><i class="bi bi-cash-coin me-1"></i>Registrar cobro</button>
-                    @endif
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -138,9 +134,9 @@
                                 @if($rec && $rec->checklist)
                                 <div class="mt-2 d-flex flex-wrap gap-1">
                                     @foreach($rec->checklist as $key => $item)
-                                        @php $cond = is_array($item) ? ($item['condition'] ?? null) : $item; $cc = $cond === 'bien' ? 'success' : ($cond === 'regular' ? 'warning' : 'danger'); @endphp
+                                        @php $cond = is_array($item) ? ($item['condition'] ?? null) : $item; $cc = \App\Models\Rentals\RentalInspection::checklistColor($cond); @endphp
                                         @if($cond)
-                                        <span class="badge bg-{{ $cc }}-subtle text-{{ $cc }} border border-{{ $cc }}-subtle" style="font-size:.66rem;">{{ \App\Models\Rentals\RentalInspection::CHECKLIST_ITEMS[$key] ?? $key }}: {{ \App\Models\Rentals\RentalInspection::CONDITIONS[$cond] ?? $cond }}</span>
+                                        <span class="badge bg-{{ $cc }}-subtle text-{{ $cc }} border border-{{ $cc }}-subtle" style="font-size:.66rem;">{{ \App\Models\Rentals\RentalInspection::CHECKLIST_ITEMS[$key] ?? $key }}: {{ \App\Models\Rentals\RentalInspection::checklistLabel($cond) }}</span>
                                         @endif
                                     @endforeach
                                 </div>
@@ -161,33 +157,6 @@
                     @if($rental->workOrder)
                     <div class="alert alert-primary border-0 mt-3 mb-0 small"><i class="bi bi-tools me-2"></i>Orden de Taller generada: <strong>{{ $rental->workOrder->code }}</strong> ({{ $rental->workOrder->status_label }})</div>
                     @endif
-                </div>
-            </div>
-
-            {{-- Pagos --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-2 text-muted"></i>Pagos</h6>
-                    @if($canPay && in_array($rental->status, ['contrato','entregada','devuelta']) && $rental->balance > 0.01)
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#payModal"><i class="bi bi-plus-lg me-1"></i>Registrar pago</button>
-                    @endif
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-sm align-middle mb-0" style="font-size:.82rem;">
-                        <tbody>
-                            @forelse($rental->payments as $p)
-                            @php $isRefund = $p->type === 'devolucion_deposito'; @endphp
-                            <tr>
-                                <td class="ps-4 py-2 text-muted">{{ $p->payment_date?->format('d/m/Y') }}</td>
-                                <td class="py-2">{{ $p->type_label }}</td>
-                                <td class="py-2 text-muted">{{ ucfirst($p->method) }}</td>
-                                <td class="py-2 text-end pe-4 fw-semibold {{ $isRefund ? 'text-danger' : '' }}">{{ $isRefund ? '-' : '' }}Bs. {{ number_format($p->amount, 2) }}</td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="4" class="text-center py-3 text-muted small">Sin pagos.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
@@ -232,42 +201,44 @@
                     </div>
                 </div>
             </div>
+            @php
+                // El depósito se cobra recién AL ENTREGAR la moto.
+                $depositCollected = in_array($rental->status, ['entregada', 'devuelta', 'cerrada']);
+            @endphp
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom py-3 px-4"><h6 class="mb-0 fw-semibold"><i class="bi bi-safe2 me-2 text-muted"></i>Depósito de garantía</h6></div>
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between mb-2 small"><span class="text-muted">Depósito</span><span class="fw-semibold">Bs. {{ number_format($rental->deposit, 2) }}</span></div>
-                    <div class="d-flex justify-content-between mb-2 small"><span class="text-muted">Reembolsado</span><span class="fw-semibold">Bs. {{ number_format($rental->deposit_refunded, 2) }}</span></div>
-                    <div class="text-center mt-2"><span class="badge bg-light text-dark border">{{ $rental->deposit_status_label }}</span></div>
+                    @if($rental->deposit <= 0)
+                        <div class="text-muted small text-center py-2">Este alquiler no requiere depósito de garantía.</div>
+                    @else
+                        <div class="d-flex justify-content-between mb-2 small">
+                            <span class="text-muted">Monto del depósito</span>
+                            <span class="fw-semibold">Bs. {{ number_format($rental->deposit, 2) }}</span>
+                        </div>
+
+                        @if(!$depositCollected)
+                            {{-- Aún no entregada: el depósito todavía NO se cobró --}}
+                            <div class="alert alert-warning border-0 py-2 px-3 small mb-0 d-flex align-items-start gap-2">
+                                <i class="bi bi-clock-history flex-shrink-0 mt-1"></i>
+                                <span><strong>Pendiente de cobro.</strong> El depósito se cobrará al <strong>entregar</strong> la moto.</span>
+                            </div>
+                        @else
+                            {{-- Ya entregada: el depósito fue cobrado en la entrega --}}
+                            <div class="d-flex justify-content-between mb-2 small">
+                                <span class="text-muted">Reembolsado</span>
+                                <span class="fw-semibold">Bs. {{ number_format($rental->deposit_refunded, 2) }}</span>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between mt-2">
+                                <span class="text-success small"><i class="bi bi-check-circle me-1"></i>Cobrado en la entrega</span>
+                                <span class="badge bg-{{ $rental->deposit_status_color }}-subtle text-{{ $rental->deposit_status_color }} border border-{{ $rental->deposit_status_color }}-subtle">{{ $rental->deposit_status_label }}</span>
+                            </div>
+                        @endif
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-{{-- Modal Pago --}}
-@if($canPay)
-<div class="modal fade" id="payModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form class="modal-content" action="{{ route('rentals.pay', $rental) }}" method="POST">
-      @csrf
-      <div class="modal-header"><h6 class="modal-title fw-semibold"><i class="bi bi-cash-coin me-2"></i>Registrar pago</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <p class="small text-muted">Saldo pendiente: <strong>Bs. {{ number_format($rental->balance, 2) }}</strong></p>
-        <div class="mb-3"><label class="form-label small fw-semibold">Monto *</label>
-            <div class="input-group"><span class="input-group-text bg-light">Bs.</span>
-            <input type="number" name="amount" class="form-control" step="0.01" min="0.01" max="{{ $rental->balance }}" value="{{ number_format($rental->balance, 2, '.', '') }}" required></div></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Método</label>
-            <select name="method" class="form-select">
-                <option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="qr">QR</option>
-            </select></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Referencia</label><input type="text" name="reference" class="form-control"></div>
-        <div class="mb-0"><label class="form-label small fw-semibold">Notas</label><textarea name="notes" rows="2" class="form-control"></textarea></div>
-      </div>
-      <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar</button></div>
-    </form>
-  </div>
-</div>
-@endif
 
 {{-- Modal Penalización --}}
 @if($canEdit)

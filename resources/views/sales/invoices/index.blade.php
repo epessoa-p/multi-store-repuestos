@@ -101,6 +101,20 @@
                     </a>
                     @endforeach
                 </div>
+                @if($canAllSales && $sellers->count())
+                <div class="d-flex gap-1 flex-wrap align-items-center ms-2">
+                    <span class="text-muted small me-1">Registró:</span>
+                    <select name="seller" class="form-select form-select-sm" style="width:auto;"
+                            onchange="this.form.submit()" aria-label="Filtrar por personal que registró">
+                        <option value="">Todos</option>
+                        @foreach($sellers as $s)
+                        <option value="{{ $s->id }}" {{ (string) $activeSeller === (string) $s->id ? 'selected' : '' }}>
+                            {{ $s->personal?->full_name ?: $s->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div class="d-flex gap-1 flex-wrap align-items-center ms-2">
                     <span class="text-muted small me-1">Fecha:</span>
                     <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-control form-control-sm" style="width:auto;" aria-label="Desde">
@@ -126,7 +140,6 @@
                             <th class="ps-4 py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Código</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Cliente</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Sucursal</th>
-                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Registró</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Tipo</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Fecha</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Total</th>
@@ -145,9 +158,14 @@
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size:.62rem;">Anulada</span>
                                 @endif
                             </td>
-                            <td class="py-1 small">{{ $sale->client_name }}</td>
+                            <td class="py-1 small">
+                                <div class="fw-semibold text-dark lh-sm">{{ $sale->client_name }}</div>
+                                <div class="text-muted d-flex align-items-center gap-1 lh-sm" style="font-size:.7rem;"
+                                     title="Registró la venta">
+                                    <i class="bi bi-person-badge" style="color:#6366f1;"></i>{{ $sale->createdBy?->personal?->full_name ?: ($sale->createdBy?->name ?? '—') }}
+                                </div>
+                            </td>
                             <td class="py-1 small text-muted">{{ $sale->branch?->name ?? '—' }}</td>
-                            <td class="py-1 small text-muted">{{ $sale->createdBy?->name ?? '—' }}</td>
                             <td class="py-1">
                                 <span class="badge bg-{{ $sale->sale_type_color }}-subtle text-{{ $sale->sale_type_color }} border border-{{ $sale->sale_type_color }}-subtle" style="font-size:.66rem;">
                                     {{ $sale->sale_type_label }}
@@ -173,7 +191,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
                                 <p class="mb-0">No hay ventas registradas.</p>
                                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('sales.create', auth()->user()->getCurrentCompany()))

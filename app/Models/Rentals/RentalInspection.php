@@ -32,6 +32,27 @@ class RentalInspection extends Model
 
     const CONDITIONS = ['bien' => 'Bien', 'regular' => 'Regular', 'mal' => 'Mal'];
 
+    /** Ítems que se evalúan por presencia (Sí/No) en vez de condición */
+    const YESNO_ITEMS = ['casco', 'herramientas'];
+    const YESNO       = ['si' => 'Sí', 'no' => 'No'];
+
+    /** Etiqueta legible de un valor del checklist (condición o sí/no). */
+    public static function checklistLabel(?string $value): string
+    {
+        return self::CONDITIONS[$value] ?? self::YESNO[$value] ?? (string) $value;
+    }
+
+    /** Color (Bootstrap) de un valor del checklist. */
+    public static function checklistColor(?string $value): string
+    {
+        return match ($value) {
+            'bien', 'si' => 'success',
+            'regular'    => 'warning',
+            'mal', 'no'  => 'danger',
+            default      => 'secondary',
+        };
+    }
+
     protected $fillable = [
         'company_id', 'rental_contract_id', 'type', 'mileage', 'fuel_level',
         'checklist', 'notes', 'created_by',

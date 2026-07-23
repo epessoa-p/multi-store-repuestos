@@ -137,23 +137,26 @@ class SaleReturnController extends Controller
                         'subtotal'       => $lineTotal,
                     ]);
 
-                    // Reingreso de stock
-                    if ($warehouseId) {
-                        InventoryMovement::create([
-                            'company_id'    => $sale->company_id,
-                            'warehouse_id'  => $warehouseId,
-                            'branch_id'     => $sale->branch_id,
-                            'product_id'    => $saleItem->product_id,
-                            'user_id'       => auth()->id(),
-                            'type'          => 'in',
-                            'quantity'      => $qty,
-                            'unit_cost'     => $saleItem->unit_price,
-                            'reference'     => $return->code,
-                            'notes'         => 'Devolución venta ' . $sale->code,
-                            'movement_date' => $validated['return_date'],
-                        ]);
+                    // Reingreso de stock (solo si el ítem es un producto real;
+                    // la "venta rápida" sin producto no descuenta ni restaura stock).
+                    if ($saleItem->product_id) {
+                        if ($warehouseId) {
+                            InventoryMovement::create([
+                                'company_id'    => $sale->company_id,
+                                'warehouse_id'  => $warehouseId,
+                                'branch_id'     => $sale->branch_id,
+                                'product_id'    => $saleItem->product_id,
+                                'user_id'       => auth()->id(),
+                                'type'          => 'in',
+                                'quantity'      => $qty,
+                                'unit_cost'     => $saleItem->unit_price,
+                                'reference'     => $return->code,
+                                'notes'         => 'Devolución venta ' . $sale->code,
+                                'movement_date' => $validated['return_date'],
+                            ]);
+                        }
+                        Product::where('id', $saleItem->product_id)->increment('current_stock', $qty);
                     }
-                    Product::where('id', $saleItem->product_id)->increment('current_stock', $qty);
                 }
 
                 // ── Ajuste financiero de la venta ────────────────────
@@ -218,7 +221,7 @@ class SaleReturnController extends Controller
     public function show(SaleReturn $saleReturn)
     {
         $this->authorizeReturn($saleReturn);
-        $saleReturn->load(['sale.client', 'createdBy', 'items.product', 'session.cashRegister']);
+        $saleReturn->load(['sale.client', 'createdBy', 'items.product', 'items.saleItem', 'session.cashRegister']);
         return view('sales.returns.show', ['return' => $saleReturn]);
     }
 

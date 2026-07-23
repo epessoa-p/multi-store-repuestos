@@ -3,12 +3,13 @@
 <h6 class="fw-semibold small text-uppercase text-muted mb-3" style="letter-spacing:.04em;"><i class="bi bi-card-checklist me-1"></i>Checklist de inspección</h6>
 <div class="row g-2">
     @foreach(\App\Models\Rentals\RentalInspection::CHECKLIST_ITEMS as $key => $label)
+    @php $isYesNo = in_array($key, \App\Models\Rentals\RentalInspection::YESNO_ITEMS, true); @endphp
     <div class="col-md-6">
         <div class="d-flex align-items-center gap-2 border rounded-2 px-2 py-1">
             <span class="small flex-grow-1">{{ $label }}</span>
             <select name="checklist[{{ $key }}][condition]" class="form-select form-select-sm" style="width:auto;">
                 <option value="">—</option>
-                @foreach(\App\Models\Rentals\RentalInspection::CONDITIONS as $cv => $cl)
+                @foreach(($isYesNo ? \App\Models\Rentals\RentalInspection::YESNO : \App\Models\Rentals\RentalInspection::CONDITIONS) as $cv => $cl)
                 <option value="{{ $cv }}">{{ $cl }}</option>
                 @endforeach
             </select>

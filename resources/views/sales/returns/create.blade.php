@@ -171,9 +171,11 @@
                                     <tr class="border-bottom border-light">
                                         <input type="hidden" name="items[{{ $i }}][sale_item_id]" value="{{ $item->id }}">
                                         <td class="ps-4 py-3">
-                                            <div class="fw-semibold small">{{ $item->product?->name ?: '—' }}</div>
+                                            <div class="fw-semibold small">{{ $item->display_name }}</div>
                                             @if($item->product)
                                             <small class="text-muted">{{ $item->product->sku }}</small>
+                                            @else
+                                            <small class="text-muted"><i class="bi bi-lightning-charge-fill me-1 text-warning"></i>Venta rápida</small>
                                             @endif
                                         </td>
                                         <td class="py-3 text-end small text-muted">{{ number_format($item->quantity, 0) }}</td>

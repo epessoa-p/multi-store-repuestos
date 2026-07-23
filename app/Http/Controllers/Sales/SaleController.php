@@ -23,7 +23,7 @@ class SaleController extends Controller
     {
         $user  = auth()->user();
         $cid   = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
-        $query = Sale::with(['client', 'branch', 'createdBy'])->withCount('returns')->latest();
+        $query = Sale::with(['client', 'branch', 'createdBy.personal'])->withCount('returns')->latest();
 
         if ($cid) {
             $query->where('company_id', $cid);
@@ -59,6 +59,26 @@ class SaleController extends Controller
             || $user->hasPermissionInCompany('sales.view-all-records', $user->getCurrentCompany());
         if (!$canAllSales) {
             $query->where('created_by', $user->id);
+        }
+
+        // Filtro por el personal que registró la venta (solo si ve todas).
+        $activeSeller = $canAllSales ? request('seller') : null;
+        if ($activeSeller) {
+            $query->where('created_by', $activeSeller);
+        }
+
+        // Personal que ha registrado ventas (para el selector del filtro).
+        $sellers = collect();
+        if ($canAllSales) {
+            $sellers = \App\Models\User::with('personal:id,user_id,full_name')
+                ->whereIn('id', function ($q) use ($cid) {
+                    $q->from('sales')->select('created_by')->whereNotNull('created_by');
+                    if ($cid) {
+                        $q->where('company_id', $cid);
+                    }
+                })
+                ->orderBy('name')
+                ->get(['id', 'name']);
         }
 
         // ¿Puede ver todas las sucursales? (permiso o super admin)
@@ -103,6 +123,8 @@ class SaleController extends Controller
             'activeBranch'   => $activeBranch,
             'canAllBranches' => $canAllBranches,
             'canAllSales'    => $canAllSales,
+            'sellers'        => $sellers,
+            'activeSeller'   => $activeSeller,
             'dateFrom'       => $dateFrom,
             'dateTo'         => $dateTo,
             'today'          => $today,
