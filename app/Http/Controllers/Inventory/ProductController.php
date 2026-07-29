@@ -18,16 +18,71 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user  = auth()->user();
-        $query = Product::with(['company', 'category', 'brand', 'photos'])->latest();
+        $user = auth()->user();
+        $cid  = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
-        if (!$user->is_super_admin) {
-            $query->where('company_id', $user->getCurrentCompany()?->id);
+        $q          = trim((string) $request->get('q', ''));
+        $categoryId = $request->get('category_id');
+        $brandId    = $request->get('brand_id');
+        $status     = $request->get('status'); // '', 'active', 'inactive'
+        $low        = $request->boolean('low');
+
+        $products = Product::with(['company', 'category', 'brand', 'photos'])
+            ->when($cid, fn ($x) => $x->where('company_id', $cid))
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w
+                ->where('name', 'like', "%{$q}%")
+                ->orWhere('sku', 'like', "%{$q}%")
+                ->orWhere('code', 'like', "%{$q}%")
+                ->orWhere('barcode', 'like', "%{$q}%")))
+            ->when($categoryId, fn ($x) => $x->where('category_id', $categoryId))
+            ->when($brandId, fn ($x) => $x->where('brand_id', $brandId))
+            ->when($status === 'active', fn ($x) => $x->where('active', true))
+            ->when($status === 'inactive', fn ($x) => $x->where('active', false))
+            ->when($low, fn ($x) => $x->where('min_stock', '>', 0)->whereColumn('current_stock', '<=', 'min_stock'))
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Listas para filtros y edición inline (mismo alcance de empresa).
+        $categories = ProductCategory::when($cid, fn ($x) => $x->where('company_id', $cid))
+            ->where('active', true)->orderBy('name')->get(['id', 'name']);
+        $brands = ProductBrand::when($cid, fn ($x) => $x->where('company_id', $cid))
+            ->where('active', true)->orderBy('name')->get(['id', 'name']);
+
+        return view('inventory.products.index', compact(
+            'products', 'categories', 'brands', 'q', 'categoryId', 'brandId', 'status', 'low'
+        ));
+    }
+
+    /** Actualización inline de categoría / marca desde la tabla (AJAX). */
+    public function updateQuickField(Product $product, Request $request)
+    {
+        $this->authorizeProduct($product);
+
+        $field = $request->get('field');
+        abort_unless(in_array($field, ['category_id', 'brand_id'], true), 422);
+
+        $table = $field === 'category_id' ? 'product_categories' : 'product_brands';
+
+        $validated = $request->validate([
+            'value' => [
+                'nullable',
+                Rule::exists($table, 'id')->where(fn ($q) => $q->where('company_id', $product->company_id)),
+            ],
+        ]);
+
+        $value = $validated['value'] ?: null;
+        $product->update([$field => $value]);
+
+        $label = '—';
+        if ($value) {
+            $model = $field === 'category_id' ? ProductCategory::class : ProductBrand::class;
+            $label = $model::find($value)?->name ?? '—';
         }
 
-        return view('inventory.products.index', ['products' => $query->paginate(15)]);
+        return response()->json(['ok' => true, 'field' => $field, 'value' => $value, 'label' => $label]);
     }
 
     public function create()

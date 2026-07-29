@@ -5,22 +5,38 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Inventory\ProductBrand;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ProductBrandController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user  = auth()->user();
-        $query = ProductBrand::with('company')->latest();
+        $user = auth()->user();
+        $cid  = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
 
-        if (!$user->is_super_admin) {
-            $query->where('company_id', $user->getCurrentCompany()?->id);
-        }
+        $q      = trim((string) $request->get('q', ''));
+        $status = $request->get('status'); // '', 'active', 'inactive'
 
-        return view('inventory.brands.index', [
-            'brands' => $query->paginate(20),
-        ]);
+        // Conteos para los filtros (sobre el alcance de la empresa).
+        $scope  = fn () => ProductBrand::query()->when($cid, fn ($x) => $x->where('company_id', $cid));
+        $counts = [
+            'all'      => $scope()->count(),
+            'active'   => $scope()->where('active', true)->count(),
+            'inactive' => $scope()->where('active', false)->count(),
+        ];
+
+        $brands = ProductBrand::with('company')->withCount('products')
+            ->when($cid, fn ($x) => $x->where('company_id', $cid))
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) =>
+                $w->where('name', 'like', "%{$q}%")->orWhere('description', 'like', "%{$q}%")))
+            ->when($status === 'active', fn ($x) => $x->where('active', true))
+            ->when($status === 'inactive', fn ($x) => $x->where('active', false))
+            ->orderBy('name')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('inventory.brands.index', compact('brands', 'q', 'status', 'counts'));
     }
 
     public function create()

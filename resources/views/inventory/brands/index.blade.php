@@ -23,6 +23,64 @@
     </div>
     @endif
 
+    {{-- ── Filtros ─────────────────────────────────────────────────── --}}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3 px-3 px-md-4">
+            <form method="GET" action="{{ route('product-brands.index') }}"
+                  class="d-flex flex-wrap align-items-center gap-2">
+                {{-- Preservar el estado activo al buscar --}}
+                @if($status)<input type="hidden" name="status" value="{{ $status }}">@endif
+
+                {{-- Búsqueda --}}
+                <div class="input-group input-group-sm flex-grow-1" style="min-width:220px;max-width:360px;">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="q" value="{{ $q }}" autocomplete="off"
+                           class="form-control border-start-0 ps-0"
+                           placeholder="Buscar por nombre o descripción...">
+                    @if($q)
+                    <a href="{{ route('product-brands.index', array_merge(request()->except(['q','page']))) }}"
+                       class="btn btn-light border" title="Limpiar búsqueda"><i class="bi bi-x-lg"></i></a>
+                    @endif
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+                </div>
+
+                {{-- Estado (pills con conteo) --}}
+                <div class="d-flex align-items-center gap-1 flex-wrap ms-md-auto">
+                    <span class="text-muted small me-1 d-none d-sm-inline">Estado:</span>
+                    <a href="{{ route('product-brands.index', array_merge(request()->except(['status','page']))) }}"
+                       class="btn btn-sm {{ !$status ? 'btn-dark' : 'btn-light border' }}">
+                        Todas <span class="badge bg-white text-dark border ms-1">{{ $counts['all'] }}</span>
+                    </a>
+                    <a href="{{ route('product-brands.index', array_merge(request()->except('page'), ['status' => 'active'])) }}"
+                       class="btn btn-sm {{ $status === 'active' ? 'btn-success' : 'btn-light border' }}">
+                        Activas <span class="badge {{ $status === 'active' ? 'bg-white text-success' : 'bg-success-subtle text-success border border-success-subtle' }} ms-1">{{ $counts['active'] }}</span>
+                    </a>
+                    <a href="{{ route('product-brands.index', array_merge(request()->except('page'), ['status' => 'inactive'])) }}"
+                       class="btn btn-sm {{ $status === 'inactive' ? 'btn-secondary' : 'btn-light border' }}">
+                        Inactivas <span class="badge {{ $status === 'inactive' ? 'bg-white text-secondary' : 'bg-secondary-subtle text-secondary border border-secondary-subtle' }} ms-1">{{ $counts['inactive'] }}</span>
+                    </a>
+                </div>
+            </form>
+
+            @if($q || $status)
+            <div class="mt-2 d-flex align-items-center gap-2 small text-muted flex-wrap">
+                <i class="bi bi-funnel-fill text-primary"></i>
+                <span>Mostrando {{ $brands->total() }} resultado(s)</span>
+                @if($q)
+                <span>para «<strong>{{ $q }}</strong>»</span>
+                @endif
+                @if($status === 'active')
+                <span>· solo activas</span>
+                @endif
+                @if($status === 'inactive')
+                <span>· solo inactivas</span>
+                @endif
+                <a href="{{ route('product-brands.index') }}" class="text-decoration-none">Limpiar filtros</a>
+            </div>
+            @endif
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
@@ -48,7 +106,7 @@
                         </td>
                         <td class="py-2 text-muted" style="max-width:280px;">{{ Str::limit($brand->description, 70) ?: '—' }}</td>
                         <td class="py-2 text-center">
-                            <span class="badge bg-light text-dark border fw-normal" style="font-size:.75rem;">{{ $brand->products()->count() }}</span>
+                            <span class="badge bg-light text-dark border fw-normal" style="font-size:.75rem;">{{ $brand->products_count }}</span>
                         </td>
                         <td class="py-2">
                             @if($brand->active)
@@ -77,12 +135,20 @@
                     @empty
                     <tr>
                         <td colspan="5" class="text-center py-5 text-muted">
+                            @if($q || $status)
+                            <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+                            <p class="mb-0">No se encontraron marcas con esos filtros.</p>
+                            <a href="{{ route('product-brands.index') }}" class="btn btn-sm btn-light border mt-3">
+                                <i class="bi bi-x-lg me-1"></i>Limpiar filtros
+                            </a>
+                            @else
                             <i class="bi bi-award fs-1 d-block mb-2 opacity-25"></i>
                             <p class="mb-0">No hay marcas registradas.</p>
                             @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.create', auth()->user()->getCurrentCompany()))
                             <a href="{{ route('product-brands.create') }}" class="btn btn-sm btn-primary mt-3">
                                 <i class="bi bi-plus-lg me-1"></i>Crear primera marca
                             </a>
+                            @endif
                             @endif
                         </td>
                     </tr>

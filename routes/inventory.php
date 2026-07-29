@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/',                  [ProductController::class, 'index'])->name('index')->middleware('check-permission:products.view');
         Route::get('/create',            [ProductController::class, 'create'])->name('create')->middleware('check-permission:products.create');
         Route::post('/',                 [ProductController::class, 'store'])->name('store')->middleware('check-permission:products.create');
+        Route::post('/{product}/quick-field', [ProductController::class, 'updateQuickField'])->name('quick-field')->middleware('check-permission:products.edit');
         Route::get('/import',            [ProductController::class, 'import'])->name('import')->middleware('check-permission:products.create');
         Route::post('/import',           [ProductController::class, 'processImport'])->name('import.process')->middleware('check-permission:products.create');
         Route::delete('/photos/{photo}', [ProductController::class, 'destroyPhoto'])->name('photos.destroy')->middleware('check-permission:products.edit');
