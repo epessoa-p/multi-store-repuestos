@@ -223,7 +223,7 @@
                                 <label class="text-muted small mb-0" for="discountPct">Descuento <span class="text-muted" style="font-size:.72rem;">(% s/ ganancia)</span></label>
                                 <div class="input-group input-group-sm" style="width:92px;">
                                     <input type="number" id="discountPct" name="discount_pct"
-                                           class="form-control text-end" min="0" max="100" step="1" inputmode="numeric"
+                                           class="form-control text-end" min="0" max="100" step="any"
                                            value="0" placeholder="0"
                                            oninput="recalcCart()">
                                     <span class="input-group-text bg-light px-2">%</span>
@@ -233,8 +233,15 @@
                                 <span class="text-muted">Descuento aplicado</span>
                                 <span class="text-danger" id="cartDiscount">-$0.00</span>
                             </div>
-                            <div class="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
-                                <span>TOTAL</span>
+                            <div class="d-flex justify-content-between align-items-center fw-bold border-top pt-2 mt-1">
+                                <span class="d-flex align-items-center gap-2">
+                                    TOTAL
+                                    <button type="button" id="btnRoundTotal" class="btn btn-outline-secondary btn-sm py-0 px-2 d-none fw-normal"
+                                            style="font-size:.72rem;line-height:1.5;" title="Redondear el total al entero más cercano"
+                                            onclick="redondearTotal()">
+                                        <i class="bi bi-magic me-1"></i>Redondear
+                                    </button>
+                                </span>
                                 <span id="cartTotal" class="fs-5 text-dark">$0.00</span>
                             </div>
                         </div>
@@ -668,6 +675,14 @@
 
 @push('scripts')
 <script>
+// En el POS arrancamos con el menú lateral colapsado (más espacio de pantalla),
+// sin tocar la preferencia global del usuario (localStorage) para otras vistas.
+(function () {
+    const shell = document.querySelector('.app-shell');
+    if (shell) shell.classList.add('sidebar-collapsed');
+})();
+</script>
+<script>
 const PRODUCTS = @json($productsData);
 const CLIENTS  = @json($clientsJson);
 const WAREHOUSES = @json($warehousesJson);
@@ -1073,10 +1088,12 @@ function recalcCart() {
     const items  = Object.values(cart);
     const sub    = items.reduce((s, it) => s + it.qty * it.product.price, 0);
     const profit = items.reduce((s, it) => s + it.qty * (it.product.price - (it.product.cost || 0)), 0);
-    let pct = parseInt(document.getElementById('discountPct').value, 10) || 0;
+    // Base del descuento igual que el servidor: suma de la ganancia POSITIVA por ítem.
+    const profitBasis = items.reduce((s, it) => s + Math.max(0, it.qty * (it.product.price - (it.product.cost || 0))), 0);
+    let pct = parseFloat(document.getElementById('discountPct').value) || 0;
     pct = Math.min(100, Math.max(0, pct));
     // El descuento solo afecta a la ganancia (precio − costo)
-    const disc  = Math.max(0, Math.round(Math.max(0, profit) * pct / 100 * 100) / 100);
+    const disc  = Math.max(0, Math.round(profitBasis * pct / 100 * 100) / 100);
     const total = Math.max(0, sub - disc);
 
     document.getElementById('cartSubtotal').textContent = '$' + sub.toFixed(2);
@@ -1088,7 +1105,27 @@ function recalcCart() {
         dRow.style.display = 'none';
     }
     document.getElementById('cartTotal').textContent = '$' + total.toFixed(2);
-    return { sub, disc, total, pct, profit };
+
+    // Botón "Redondear": visible solo si el total tiene decimales y hay ganancia para ajustar.
+    const esRedondeable = profitBasis > 0 && Math.abs(total - Math.round(total)) > 0.001;
+    document.getElementById('btnRoundTotal').classList.toggle('d-none', !esRedondeable);
+
+    return { sub, disc, total, pct, profit, profitBasis };
+}
+
+// Redondea el total al entero de Bs más cercano y ajusta el % de descuento equivalente.
+function redondearTotal() {
+    const { sub, total, profitBasis } = recalcCart();
+    if (profitBasis <= 0) return;
+    // Entero más cercano, acotado para que el descuento quede en [0, profitBasis].
+    let N = Math.round(total);
+    N = Math.min(Math.floor(sub), Math.max(Math.ceil(sub - profitBasis), N));
+    const discTarget = Math.round((sub - N) * 100) / 100;
+    let pctNuevo = profitBasis > 0 ? (discTarget / profitBasis * 100) : 0;
+    pctNuevo = Math.min(100, Math.max(0, pctNuevo));
+    // Se muestra con 2 decimales.
+    document.getElementById('discountPct').value = parseFloat(pctNuevo.toFixed(2));
+    recalcCart();
 }
 
 // ── SUBMIT ──────────────────────────────────────────────────────────

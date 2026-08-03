@@ -114,7 +114,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'client_id'          => 'nullable|exists:clients,id',
             'sale_type'          => 'required|in:cash,credit',
-            'discount_pct'       => 'nullable|integer|min:0|max:100',
+            'discount_pct'       => 'nullable|numeric|min:0|max:100',
             'interest'           => 'nullable|numeric|min:0',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
@@ -135,7 +135,7 @@ class PosController extends Controller
         }
 
         // Descuento en % aplicado SOLO a la ganancia (precio − costo). Se calcula en el servidor.
-        $pct = (int) ($validated['discount_pct'] ?? 0);
+        $pct = (float) ($validated['discount_pct'] ?? 0);
         $discount = 0.0;
         if ($pct > 0) {
             $costs = Product::whereIn('id', collect($validated['items'])->pluck('product_id')->filter())->pluck('cost', 'id');
