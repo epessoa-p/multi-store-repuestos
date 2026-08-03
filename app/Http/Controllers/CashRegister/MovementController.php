@@ -52,7 +52,7 @@ class MovementController extends Controller
         $branchId = ($branch !== 'all' && $branches->firstWhere('id', (int) $branch)) ? (int) $branch : null;
 
         // ── Movimientos de caja (ingresos/egresos) ────────────
-        $movQuery = CashMovement::with(['cashRegister.branch', 'user'])
+        $movQuery = CashMovement::with(['cashRegister.branch', 'user.personal'])
             ->when($cid, fn ($qq) => $qq->where('company_id', $cid))
             ->whereBetween('movement_date', [$from, $to])
             ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('branch_id', $branchId)))
@@ -93,7 +93,10 @@ class MovementController extends Controller
         })->values();
 
         // Listas paginadas (página independiente por pestaña)
-        $ingresos = (clone $movQuery)->where('type', 'income')->paginate(15, ['*'], 'ip')->withQueryString();
+        // En ingresos, para las ventas cargamos la venta y sus ítems (productos / venta rápida).
+        $ingresos = (clone $movQuery)->where('type', 'income')
+            ->with(['reference' => fn ($m) => $m->morphWith([\App\Models\Sales\Sale::class => ['items.product']])])
+            ->paginate(15, ['*'], 'ip')->withQueryString();
         $egresos  = (clone $movQuery)->where('type', 'expense')->paginate(15, ['*'], 'ep')->withQueryString();
 
         // ── Por cobrar (ventas crédito + OT crédito) ──────────

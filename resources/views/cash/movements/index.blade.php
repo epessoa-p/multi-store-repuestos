@@ -332,13 +332,36 @@
                                                 <i class="bi bi-box-arrow-in-down"></i>
                                             </div>
                                         </td>
+                                        @php $esVenta = $mov->category === 'sale' && $mov->reference instanceof \App\Models\Sales\Sale && $mov->reference->items->count(); @endphp
                                         <td class="py-2">
-                                            <div class="fw-semibold text-dark">{{ $mov->description ?: '—' }}</div>
-                                            @if($mov->cashRegister?->branch?->name)
-                                                <div class="text-muted" style="font-size:.75rem;">
-                                                    <i class="bi bi-geo-alt me-1"></i>{{ $mov->cashRegister->branch->name }}
+                                            <div class="d-flex align-items-start gap-3 flex-wrap">
+                                                <div style="min-width:190px;flex-shrink:0;">
+                                                    <div class="fw-semibold text-dark">{{ $mov->description ?: '—' }}</div>
+                                                    @if($mov->cashRegister?->branch?->name)
+                                                        <div class="text-muted" style="font-size:.75rem;">
+                                                            <i class="bi bi-geo-alt me-1"></i>{{ $mov->cashRegister->branch->name }}
+                                                        </div>
+                                                    @endif
+                                                    <div class="text-muted" style="font-size:.72rem;">
+                                                        <i class="bi bi-person-badge me-1" style="color:#6366f1;"></i>{{ $mov->user?->personal?->full_name ?: ($mov->user?->name ?? '—') }}
+                                                    </div>
                                                 </div>
-                                            @endif
+                                                @if($esVenta)
+                                                <div class="d-flex flex-column align-items-start gap-1 flex-grow-1 ps-3 border-start" style="min-width:220px;">
+                                                    @foreach($mov->reference->items as $it)
+                                                        @if($it->product_id)
+                                                        <span class="badge bg-light text-dark border fw-normal" style="font-size:.66rem;">
+                                                            <i class="bi bi-box-seam me-1 text-muted"></i>{{ (int) $it->quantity }}× {{ $it->display_name }}
+                                                        </span>
+                                                        @else
+                                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-normal" style="font-size:.66rem;" title="Venta rápida">
+                                                            <i class="bi bi-lightning-charge-fill me-1"></i>{{ (int) $it->quantity }}× {{ $it->display_name }}
+                                                        </span>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                                @endif
+                                            </div>
                                         </td>
                                         <td class="py-2 fw-semibold text-success">
                                             Bs. {{ number_format($mov->amount, 2) }}
@@ -399,6 +422,9 @@
                                                     <i class="bi bi-geo-alt me-1"></i>{{ $mov->cashRegister->branch->name }}
                                                 </div>
                                             @endif
+                                            <div class="text-muted" style="font-size:.72rem;">
+                                                <i class="bi bi-person-badge me-1" style="color:#6366f1;"></i>{{ $mov->user?->personal?->full_name ?: ($mov->user?->name ?? '—') }}
+                                            </div>
                                         </td>
                                         <td class="py-2 fw-semibold text-danger">
                                             Bs. {{ number_format($mov->amount, 2) }}
