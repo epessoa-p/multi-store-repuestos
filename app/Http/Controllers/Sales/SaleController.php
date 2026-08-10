@@ -23,7 +23,7 @@ class SaleController extends Controller
     {
         $user  = auth()->user();
         $cid   = $user->is_super_admin ? null : $user->getCurrentCompany()?->id;
-        $query = Sale::with(['client', 'branch', 'createdBy.personal'])->withCount('returns')->latest();
+        $query = Sale::with(['client', 'branch', 'createdBy.personal', 'items.product'])->withCount('returns')->latest();
 
         if ($cid) {
             $query->where('company_id', $cid);

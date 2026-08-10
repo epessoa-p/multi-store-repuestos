@@ -140,7 +140,7 @@
                             <th class="ps-4 py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Código</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Cliente</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Sucursal</th>
-                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Tipo</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Productos</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.68rem;">Fecha</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Total</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.68rem;">Pagado</th>
@@ -153,10 +153,15 @@
                         <tr class="border-bottom border-light {{ $sale->status === 'cancelled' ? 'opacity-60' : '' }} {{ $canViewSale ? 'sale-row' : '' }}"
                             @if($canViewSale) onclick="window.location='{{ route('sales.show', $sale) }}'" @endif>
                             <td class="ps-4 py-1">
-                                <span class="fw-semibold {{ $sale->status === 'cancelled' ? 'text-muted text-decoration-line-through' : 'text-dark' }}">{{ $sale->code }}</span>
-                                @if($sale->status === 'cancelled')
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size:.62rem;">Anulada</span>
-                                @endif
+                                <div>
+                                    <span class="fw-semibold {{ $sale->status === 'cancelled' ? 'text-muted text-decoration-line-through' : 'text-dark' }}">{{ $sale->code }}</span>
+                                    @if($sale->status === 'cancelled')
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size:.62rem;">Anulada</span>
+                                    @endif
+                                </div>
+                                <span class="badge bg-{{ $sale->sale_type_color }}-subtle text-{{ $sale->sale_type_color }} border border-{{ $sale->sale_type_color }}-subtle mt-1" style="font-size:.62rem;">
+                                    {{ $sale->sale_type_label }}
+                                </span>
                             </td>
                             <td class="py-1 small">
                                 <div class="fw-semibold text-dark lh-sm">{{ $sale->client_name }}</div>
@@ -167,9 +172,23 @@
                             </td>
                             <td class="py-1 small text-muted">{{ $sale->branch?->name ?? '—' }}</td>
                             <td class="py-1">
-                                <span class="badge bg-{{ $sale->sale_type_color }}-subtle text-{{ $sale->sale_type_color }} border border-{{ $sale->sale_type_color }}-subtle" style="font-size:.66rem;">
-                                    {{ $sale->sale_type_label }}
-                                </span>
+                                @if($sale->items->count())
+                                <div class="d-flex flex-column align-items-start gap-1">
+                                    @foreach($sale->items as $it)
+                                        @if($it->product_id)
+                                        <span class="badge bg-light text-dark border fw-normal" style="font-size:.64rem;">
+                                            <i class="bi bi-box-seam me-1 text-muted"></i>{{ (int) $it->quantity }}× {{ $it->display_name }}
+                                        </span>
+                                        @else
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-normal" style="font-size:.64rem;" title="Venta rápida">
+                                            <i class="bi bi-lightning-charge-fill me-1"></i>{{ (int) $it->quantity }}× {{ $it->display_name }}
+                                        </span>
+                                        @endif
+                                    @endforeach
+                                </div>
+                                @else
+                                <span class="text-muted">—</span>
+                                @endif
                             </td>
                             <td class="py-1 small text-muted">
                                 {{ $sale->sale_date->format('d/m/Y') }}
