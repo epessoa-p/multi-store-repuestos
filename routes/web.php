@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CargoController;
 use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\DocumentTemplates\DocumentTemplateController;
+use App\Http\Controllers\Catalog\PublicCatalogController;
 use Illuminate\Support\Facades\Route;
 
 // Guest routes
@@ -128,6 +129,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{client}',    [ClientController::class, 'destroy'])->name('destroy')->middleware('check-permission:clients.delete');
         Route::delete('/documents/{document}', [ClientController::class, 'destroyDocument'])->name('documents.destroy')->middleware('check-permission:clients.edit');
     });
+
+// ── Catálogo público de tienda (sin login, acceso por token de sucursal) ──
+// Nota: /catalogo/{token} ya lo usa el módulo de fidelización, por eso /tienda/.
+Route::middleware('throttle:120,1')->group(function () {
+    Route::get('/tienda/{token}',      [PublicCatalogController::class, 'show'])->name('catalog.public.show');
+    Route::get('/tienda/{token}/pdf',  [PublicCatalogController::class, 'pdf'])->name('catalog.public.pdf')->middleware('throttle:30,1');
+});
 
 // Fallback
 Route::redirect('/', '/dashboard');

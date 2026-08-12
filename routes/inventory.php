@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Inventory\CatalogController;
 use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\Inventory\ProductBrandController;
 use App\Http\Controllers\Inventory\ProductCategoryController;
@@ -66,6 +67,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/{product}/edit',    [ProductController::class, 'edit'])->name('edit')->middleware('check-permission:products.edit');
         Route::put('/{product}',         [ProductController::class, 'update'])->name('update')->middleware('check-permission:products.edit');
         Route::delete('/{product}',      [ProductController::class, 'destroy'])->name('destroy')->middleware('check-permission:products.delete');
+    });
+
+    // ── Catálogo público (administración: link + QR + activar/descargar) ───────
+    Route::prefix('inventory/catalog')->name('inventory.catalog.')->group(function () {
+        Route::get('/',                     [CatalogController::class, 'index'])->name('index')->middleware('check-permission:products.view');
+        Route::post('/{branch}/toggle',     [CatalogController::class, 'toggle'])->name('toggle')->middleware('check-permission:products.edit');
+        Route::post('/{branch}/regenerate', [CatalogController::class, 'regenerate'])->name('regenerate')->middleware('check-permission:products.edit');
     });
 
     // ── Almacenes ─────────────────────────────────────────────────────────────

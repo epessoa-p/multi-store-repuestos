@@ -78,27 +78,7 @@ class PosController extends Controller
     /** Stock por almacén (calculado desde el Kardex) para todos los productos: [warehouse_id => [product_id => qty]]. */
     private function warehouseStockMatrix(?int $cid): array
     {
-        $base = InventoryMovement::query()->when($cid, fn ($q) => $q->where('company_id', $cid));
-
-        $inDirect = (clone $base)->whereIn('type', ['in', 'adjustment'])
-            ->selectRaw('warehouse_id wid, product_id pid, SUM(quantity) q')->groupBy('warehouse_id', 'product_id')->get();
-        $inTransfer = (clone $base)->where('type', 'transfer')->whereNotNull('destination_warehouse_id')
-            ->selectRaw('destination_warehouse_id wid, product_id pid, SUM(quantity) q')->groupBy('destination_warehouse_id', 'product_id')->get();
-        $outs = (clone $base)->whereIn('type', ['out', 'transfer'])
-            ->selectRaw('warehouse_id wid, product_id pid, SUM(quantity) q')->groupBy('warehouse_id', 'product_id')->get();
-
-        $map = [];
-        $apply = function ($rows, $sign) use (&$map) {
-            foreach ($rows as $r) {
-                if (!$r->wid) continue;
-                $map[$r->wid][$r->pid] = ($map[$r->wid][$r->pid] ?? 0) + $sign * (float) $r->q;
-            }
-        };
-        $apply($inDirect, 1);
-        $apply($inTransfer, 1);
-        $apply($outs, -1);
-
-        return $map;
+        return InventoryMovement::stockMatrix($cid);
     }
 
     public function store(Request $request)

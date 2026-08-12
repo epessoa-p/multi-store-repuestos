@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Branch extends Model
 {
@@ -23,6 +24,8 @@ class Branch extends Model
         'manager_name',
         'color',
         'active',
+        'catalog_token',
+        'catalog_enabled',
     ];
 
     public function getColorOrDefaultAttribute(): string
@@ -31,9 +34,26 @@ class Branch extends Model
     }
 
     protected $casts = [
-        'active' => 'boolean',
-        'deleted_at' => 'datetime',
+        'active'          => 'boolean',
+        'catalog_enabled' => 'boolean',
+        'deleted_at'      => 'datetime',
     ];
+
+    /** Garantiza que la sucursal tenga un token de catálogo (lo genera si falta). */
+    public function ensureCatalogToken(): string
+    {
+        if (!$this->catalog_token) {
+            $this->catalog_token = Str::random(40);
+            $this->save();
+        }
+        return $this->catalog_token;
+    }
+
+    /** URL pública del catálogo de esta sucursal. */
+    public function catalogUrl(): string
+    {
+        return route('catalog.public.show', $this->ensureCatalogToken());
+    }
 
     public function company(): BelongsTo
     {

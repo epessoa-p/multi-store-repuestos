@@ -156,6 +156,13 @@
                 </a>
             </li>
             @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('inventory.catalog.*') ? 'active' : '' }}" href="{{ route('inventory.catalog.index') }}">
+                    <i class="bi bi-qr-code"></i> Catálogo
+                </a>
+            </li>
+            @endif
         </ul>
 
         @php
@@ -721,6 +728,9 @@
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}"><i class="bi bi-journal-text me-2"></i>Kardex</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('products.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('inventory.catalog.*') ? 'active' : '' }}" href="{{ route('inventory.catalog.index') }}"><i class="bi bi-qr-code me-2"></i>Catálogo</a></li>
                 @endif
             </ul>
 
