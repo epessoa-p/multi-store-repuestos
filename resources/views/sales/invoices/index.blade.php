@@ -13,7 +13,15 @@
                 </span>
                 @endunless
             </h1>
-            <p class="text-muted mb-0 small">Registro de ventas realizadas.</p>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <p class="text-muted mb-0 small">Registro de ventas realizadas.</p>
+                <span class="badge bg-dark-subtle text-dark border d-inline-flex align-items-center gap-1"
+                      style="font-size:.72rem;" title="Suma de todas las páginas del filtro actual, sin ventas anuladas">
+                    <i class="bi bi-cash-coin text-success"></i>
+                    Total: <strong>${{ number_format($sumTotal, 2) }}</strong>
+                    <span class="text-muted fw-normal">· {{ $sumCount }} {{ $sumCount === 1 ? 'venta' : 'ventas' }}</span>
+                </span>
+            </div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('pos.access', auth()->user()->getCurrentCompany()))

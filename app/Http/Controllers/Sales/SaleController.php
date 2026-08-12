@@ -117,6 +117,13 @@ class SaleController extends Controller
         }
         $branches = $branchesQuery->orderBy('name')->get(['id', 'name']);
 
+        // Totales de TODO el listado filtrado (todas las páginas), sin anuladas.
+        $sumQuery    = (clone $query)->where('status', '!=', 'cancelled');
+        $sumCount    = (clone $sumQuery)->count();
+        $sumTotal    = (float) (clone $sumQuery)->sum('total');
+        $sumPaid     = (float) (clone $sumQuery)->sum('paid_amount');
+        $sumBalance  = $sumTotal - $sumPaid;
+
         return view('sales.invoices.index', [
             'sales'          => $query->paginate(15)->withQueryString(),
             'branches'       => $branches,
@@ -128,6 +135,10 @@ class SaleController extends Controller
             'dateFrom'       => $dateFrom,
             'dateTo'         => $dateTo,
             'today'          => $today,
+            'sumCount'       => $sumCount,
+            'sumTotal'       => $sumTotal,
+            'sumPaid'        => $sumPaid,
+            'sumBalance'     => $sumBalance,
         ]);
     }
 
