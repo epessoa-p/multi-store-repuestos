@@ -9,15 +9,21 @@
         .head h1 { font-size: 16px; margin: 0 0 2px; }
         .head .sub { color: #555; font-size: 10px; }
         .head .meta { color: #888; font-size: 9px; margin-top: 2px; }
-        table { width: 100%; border-collapse: collapse; }
+        .cat-title {
+            font-size: 11px; font-weight: bold; color: #0a0a0a;
+            background: #f0f0f0; border-left: 3px solid #e10600;
+            padding: 4px 8px; margin: 12px 0 4px;
+            page-break-inside: avoid; page-break-after: avoid;
+        }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
         th, td { padding: 4px 6px; border-bottom: 1px solid #e6e6e6; text-align: left; vertical-align: top; }
         thead th { background: #0a0a0a; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; }
-        tbody tr:nth-child(even) { background: #f7f7f8; }
+        tr.alt td { background: #f7f7f8; }
         .price { text-align: right; font-weight: bold; white-space: nowrap; }
         .br { text-align: center; width: 46px; font-size: 9px; }
         .ok  { color: #16a34a; font-weight: bold; }
         .no  { color: #bbb; }
-        .cat { color: #666; font-size: 9px; }
+        .brand { color: #666; font-size: 9px; }
         .foot { margin-top: 12px; color: #999; font-size: 8px; text-align: center; }
     </style>
 </head>
@@ -34,36 +40,42 @@
         </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th class="price">Precio (Bs)</th>
-                @foreach($branches as $b)
-                    <th class="br">{{ \Illuminate\Support\Str::limit($b->name, 8, '') }}</th>
+    @forelse($grouped as $categoria => $items)
+        <div class="cat-title">{{ $categoria }} <span style="font-weight:normal;color:#888;">({{ $items->count() }})</span></div>
+
+        {{-- Cada categoría se divide en bloques de 60 filas: tablas pequeñas
+             para no agotar memoria (Cellmap) en catálogos grandes. --}}
+        @foreach($items->chunk(60) as $chunk)
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th class="price">Precio (Bs)</th>
+                    @foreach($branches as $b)
+                        <th class="br">{{ \Illuminate\Support\Str::limit($b->name, 8, '') }}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($chunk as $product)
+                <tr class="{{ $loop->even ? 'alt' : '' }}">
+                    <td>
+                        {{ $product->name }}
+                        @if($product->brand)<div class="brand">{{ $product->brand->name }}</div>@endif
+                    </td>
+                    <td class="price">{{ number_format($product->price, 2) }}</td>
+                    @foreach($branches as $b)
+                        @php $ok = ($stock[$b->warehouse_id][$product->id] ?? 0) > 0; @endphp
+                        <td class="br">{!! $ok ? '<span class="ok">Sí</span>' : '<span class="no">—</span>' !!}</td>
+                    @endforeach
+                </tr>
                 @endforeach
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($products as $product)
-            <tr>
-                <td>
-                    {{ $product->name }}
-                    @if($product->brand)<div class="cat">{{ $product->brand->name }}</div>@endif
-                </td>
-                <td class="cat">{{ $product->category?->name ?? '—' }}</td>
-                <td class="price">{{ number_format($product->price, 2) }}</td>
-                @foreach($branches as $b)
-                    @php $ok = ($stock[$b->warehouse_id][$product->id] ?? 0) > 0; @endphp
-                    <td class="br">{!! $ok ? '<span class="ok">Sí</span>' : '<span class="no">—</span>' !!}</td>
-                @endforeach
-            </tr>
-            @empty
-            <tr><td colspan="{{ 3 + $branches->count() }}" style="text-align:center;color:#999;padding:16px;">Sin productos.</td></tr>
-            @endforelse
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+        @endforeach
+    @empty
+        <p style="text-align:center;color:#999;padding:16px;">Sin productos.</p>
+    @endforelse
 
     <div class="foot">
         {{ $company?->name ?? '' }} — Disponibilidad: <span class="ok">Sí</span> = en existencia, — = agotado. Documento de consulta.

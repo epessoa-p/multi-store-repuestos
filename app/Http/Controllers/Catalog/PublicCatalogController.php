@@ -25,14 +25,18 @@ class PublicCatalogController extends Controller
      * Reúne los datos del catálogo de una sucursal: productos activos de la
      * empresa, categorías (para el filtro) y disponibilidad por sucursal.
      */
-    private function gather(Branch $branch, Request $request): array
+    private function gather(Branch $branch, Request $request, bool $light = false): array
     {
         $cid = $branch->company_id;
 
         $q          = trim((string) $request->get('q', ''));
         $categoryId = $request->get('category');
 
-        $products = Product::with(['category:id,name', 'brand:id,name', 'photos'])
+        // En modo liviano (PDF) no se cargan fotos ni columnas innecesarias:
+        // menos memoria por modelo × cientos de productos.
+        $relations = $light ? ['category:id,name', 'brand:id,name'] : ['category:id,name', 'brand:id,name', 'photos'];
+
+        $productsQuery = Product::with($relations)
             ->where('company_id', $cid)
             ->where('active', true)
             ->when($q !== '', function ($qq) use ($q) {
@@ -43,8 +47,11 @@ class PublicCatalogController extends Controller
                 });
             })
             ->when($categoryId, fn ($qq) => $qq->where('category_id', $categoryId))
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        $products = $light
+            ? $productsQuery->get(['id', 'name', 'price', 'category_id', 'brand_id'])
+            : $productsQuery->get();
 
         // Sucursales de la empresa (para disponibilidad cruzada).
         $branches = Branch::where('company_id', $cid)
@@ -80,16 +87,23 @@ class PublicCatalogController extends Controller
         ]));
     }
 
-    /** Descarga del catálogo en PDF (sin fotos). */
+    /** Descarga del catálogo en PDF (sin fotos, agrupado por categoría). */
     public function pdf(Request $request, string $token)
     {
-        // Catálogos grandes pueden tardar varios segundos en componer el PDF.
+        // Catálogos grandes pueden tardar y consumir memoria al componer el PDF.
         @set_time_limit(120);
+        @ini_set('memory_limit', '256M');
 
         $branch = $this->resolveBranch($token);
-        $data   = $this->gather($branch, $request);
+        $data   = $this->gather($branch, $request, light: true);
+
+        // Agrupar por categoría (ordenado por nombre) para el PDF.
+        $grouped = $data['products']
+            ->groupBy(fn ($p) => $p->category?->name ?: 'Sin categoría')
+            ->sortKeys();
 
         $pdf = Pdf::loadView('catalog.pdf', array_merge($data, [
+            'grouped' => $grouped,
             'branch'  => $branch,
             'company' => $branch->company,
         ]))->setPaper('a4');
