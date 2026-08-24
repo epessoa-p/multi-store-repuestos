@@ -1,6 +1,6 @@
 @php
-    $isEdit = isset($category);
-    $action = $isEdit ? route('product-categories.update', $category) : route('product-categories.store');
+    $isEdit = isset($origin);
+    $action = $isEdit ? route('product-origins.update', $origin) : route('product-origins.store');
     $method = $isEdit ? 'PUT' : 'POST';
 @endphp
 
@@ -20,7 +20,7 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-3 px-4">
-            <h6 class="mb-0 fw-semibold"><i class="bi bi-tag me-2 text-muted"></i>Datos de la categoría</h6>
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-globe-americas me-2 text-muted"></i>Datos del origen</h6>
         </div>
         <div class="card-body p-4">
             <div class="row g-4">
@@ -31,7 +31,7 @@
                     <select name="company_id" id="company_id" class="form-select">
                         @foreach($companies as $c)
                         <option value="{{ $c->id }}"
-                            {{ (string) old('company_id', $isEdit ? $category->company_id : '') === (string) $c->id ? 'selected' : '' }}>
+                            {{ (string) old('company_id', $isEdit ? $origin->company_id : '') === (string) $c->id ? 'selected' : '' }}>
                             {{ $c->name }}
                         </option>
                         @endforeach
@@ -39,27 +39,16 @@
                 </div>
                 @endif
 
-                <div class="col-12 col-md-8">
+                <div class="col-12">
                     <label class="form-label fw-semibold" for="name">
                         Nombre <span class="text-danger">*</span>
                     </label>
                     <input type="text" id="name" name="name"
                            class="form-control form-control-lg @error('name') is-invalid @enderror"
-                           value="{{ old('name', $isEdit ? $category->name : '') }}"
+                           value="{{ old('name', $isEdit ? $origin->name : '') }}"
                            required maxlength="255"
-                           placeholder="Ej: Frenos, Motor, Eléctrico, Transmisión...">
+                           placeholder="Ej: Brasil, China, Japón, Taiwán, Nacional...">
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-
-                <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold" for="code">Código</label>
-                    <input type="text" id="code" name="code"
-                           class="form-control form-control-lg @error('code') is-invalid @enderror"
-                           value="{{ old('code', $isEdit ? $category->code : '') }}"
-                           maxlength="30"
-                           placeholder="Ej: FRE, MOT-01...">
-                    @error('code')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    <div class="form-text text-muted">Opcional. Máx. 30 caracteres.</div>
                 </div>
 
                 <div class="col-12">
@@ -67,7 +56,7 @@
                     <textarea id="description" name="description"
                               class="form-control @error('description') is-invalid @enderror"
                               rows="3" maxlength="500"
-                              placeholder="Descripción breve de la categoría (opcional)...">{{ old('description', $isEdit ? $category->description : '') }}</textarea>
+                              placeholder="Descripción breve del origen (opcional)...">{{ old('description', $isEdit ? $origin->description : '') }}</textarea>
                     @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     <div class="form-text text-muted">Máximo 500 caracteres.</div>
                 </div>
@@ -75,10 +64,10 @@
                 <div class="col-12">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="active" name="active" value="1"
-                               {{ old('active', $isEdit ? $category->active : true) ? 'checked' : '' }}>
-                        <label class="form-check-label fw-semibold" for="active">Categoría activa</label>
+                               {{ old('active', $isEdit ? $origin->active : true) ? 'checked' : '' }}>
+                        <label class="form-check-label fw-semibold" for="active">Origen activo</label>
                     </div>
-                    <div class="form-text text-muted">Las categorías inactivas no aparecen al crear productos.</div>
+                    <div class="form-text text-muted">Los orígenes inactivos no aparecen al crear productos.</div>
                 </div>
 
             </div>
@@ -86,11 +75,11 @@
     </div>
 
     <div class="d-flex justify-content-end gap-2 mt-4">
-        <a href="{{ route('product-categories.index') }}" class="btn btn-light border px-4">
+        <a href="{{ route('product-origins.index') }}" class="btn btn-light border px-4">
             <i class="bi bi-x-lg me-1"></i>Cancelar
         </a>
         <button type="submit" class="btn btn-primary px-4">
-            <i class="bi bi-check-lg me-1"></i>{{ $isEdit ? 'Guardar cambios' : 'Crear categoría' }}
+            <i class="bi bi-check-lg me-1"></i>{{ $isEdit ? 'Guardar cambios' : 'Crear origen' }}
         </button>
     </div>
 </form>

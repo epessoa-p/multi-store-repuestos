@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Inventory\ProductBrand;
 use App\Models\Inventory\ProductCategory;
+use App\Models\Inventory\ProductOrigin;
 use App\Models\Inventory\ProductPhoto;
 use App\Models\Motos\MotoModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,7 @@ class Product extends Model
         'company_id',
         'category_id',
         'brand_id',
+        'origin_id',
         'name',
         'sku',
         'code',
@@ -56,6 +58,11 @@ class Product extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(ProductBrand::class, 'brand_id');
+    }
+
+    public function origin(): BelongsTo
+    {
+        return $this->belongsTo(ProductOrigin::class, 'origin_id');
     }
 
     public function photos(): HasMany

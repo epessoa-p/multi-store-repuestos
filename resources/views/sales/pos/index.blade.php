@@ -38,6 +38,8 @@
             'category'         => $p->category?->name ?? '',
             'category_id'      => $p->category_id,
             'brand'            => $p->brand?->name ?? '',
+            'origin'           => $p->origin?->name ?? '',
+            'origin_id'        => $p->origin_id,
             'description'      => $p->description ?? '',
             'compatible_models'=> $p->motoModels->pluck('display_name')->implode(', '),
             'model_ids'        => $p->motoModels->pluck('id')->values()->all(),
@@ -102,6 +104,8 @@
 
         {{-- ── LEFT: PRODUCT GRID ──────────────────────────────────────── --}}
         <div class="col-lg-8">
+            {{-- Bloque de filtros fijo (sticky) mientras se hace scroll del grid --}}
+            <div class="pos-filters-sticky">
             {{-- Search --}}
             <div class="mb-2 d-flex gap-2">
                 <div class="input-group input-group-sm shadow-sm flex-grow-1">
@@ -152,6 +156,19 @@
                 </div>
             </div>
             @endif
+            {{-- Origin filter bar (multiselección) --}}
+            @if($origins->count())
+            <div class="d-flex align-items-center gap-2 mb-3 flex-nowrap">
+                <span class="text-muted flex-shrink-0" style="font-size:.7rem;"><i class="bi bi-globe-americas me-1"></i>Origen</span>
+                <div class="cat-filter-bar flex-grow-1" id="originBar" style="min-width:0;">
+                    <button type="button" class="cat-pill origin-pill active" data-origin="">Todos</button>
+                    @foreach($origins as $o)
+                    <button type="button" class="cat-pill origin-pill" data-origin="{{ $o->id }}">{{ $o->name }}</button>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+            </div>{{-- /.pos-filters-sticky --}}
             {{-- Grid --}}
             <div id="productGrid" class="row g-2 align-content-start pb-2">
                 {{-- Filled by JS --}}
@@ -542,6 +559,17 @@
 }
 .cart-qty-input { width:56px; text-align:center; }
 
+/* Bloque de filtros fijo al hacer scroll del grid */
+.pos-filters-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface-bg, #f5f6f8);
+    padding-top: .5rem;
+    margin-bottom: .25rem;
+    box-shadow: 0 6px 8px -8px rgba(0,0,0,.18);
+}
+
 /* Category filter bar */
 .cat-filter-bar {
     display: flex;
@@ -694,8 +722,9 @@ let directItemSeq = 0;   // secuencia para ítems de "venta rápida" (sin produc
 // Escapes para insertar texto del usuario en HTML / atributos
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
-const selectedCats   = new Set();
-const selectedModels = new Set();
+const selectedCats    = new Set();
+const selectedModels  = new Set();
+const selectedOrigins = new Set();
 const stockCats      = new Set();
 const stockModels    = new Set();
 
@@ -900,7 +929,8 @@ function renderGrid(filter) {
             p.name.toLowerCase().includes(q) ||
             (p.code && p.code.toLowerCase().includes(q)) ||
             p.sku.toLowerCase().includes(q) ||
-            p.category.toLowerCase().includes(q))
+            p.category.toLowerCase().includes(q) ||
+            (p.origin && p.origin.toLowerCase().includes(q)))
         : PRODUCTS.slice();
 
     if (selectedCats.size) {
@@ -908,6 +938,9 @@ function renderGrid(filter) {
     }
     if (selectedModels.size) {
         list = list.filter(p => (p.model_ids || []).some(id => selectedModels.has(String(id))));
+    }
+    if (selectedOrigins.size) {
+        list = list.filter(p => selectedOrigins.has(String(p.origin_id)));
     }
 
     if (list.length === 0) {
@@ -926,7 +959,7 @@ function renderGrid(filter) {
         const img = p.photo
             ? `<img src="${p.photo}" class="product-thumb mb-2" alt="${p.name}">`
             : `<div class="product-thumb-placeholder mb-2"><i class="bi bi-box-seam"></i></div>`;
-        const meta = [p.brand, p.compatible_models].filter(Boolean).join(' · ') || '—';
+        const meta = [p.brand, p.origin, p.compatible_models].filter(Boolean).join(' · ') || '—';
         const metaEsc = meta.replace(/"/g, '&quot;');
         const codeHtml = p.code
             ? `<span class="badge bg-light text-dark border" style="font-size:.6rem;"><i class="bi bi-upc me-1"></i>${p.code}</span>`
@@ -1323,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Categoría: dos barras (nombre + código) sincronizadas sobre el mismo filtro
     setupMultiBar(['catBar', 'catCodeBar'], 'cat', selectedCats);
     setupMultiBar('modelBar', 'model', selectedModels);
+    setupMultiBar('originBar', 'origin', selectedOrigins);
     // Barras de filtro del modal de stock
     const stockOnChange = function () { renderStockTable(document.getElementById('stockSearch').value); };
     setupMultiBar('stockCatBar', 'cat', stockCats, stockOnChange);

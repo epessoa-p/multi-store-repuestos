@@ -61,6 +61,15 @@
                     </select>
                 </div>
                 <div class="col-6 col-md-auto">
+                    <label class="form-label small fw-semibold text-muted mb-1">Origen</label>
+                    <select name="origin_id" class="form-select form-select-sm js-autosubmit" data-placeholder="Todos">
+                        <option value="">Todos</option>
+                        @foreach($origins as $o)
+                        <option value="{{ $o->id }}" {{ (string) $originId === (string) $o->id ? 'selected' : '' }}>{{ $o->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-6 col-md-auto">
                     <label class="form-label small fw-semibold text-muted mb-1">Estado</label>
                     <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" data-no-search>
                         <option value="">Todos</option>
@@ -100,6 +109,7 @@
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Producto</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Categoría</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Marca</th>
+                            <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Origen</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-center" style="letter-spacing:.04em;font-size:.72rem;">Stock</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase text-end" style="letter-spacing:.04em;font-size:.72rem;">Precio</th>
                             <th class="py-2 fw-semibold text-muted text-uppercase" style="letter-spacing:.04em;font-size:.72rem;">Estado</th>
@@ -160,6 +170,22 @@
                                 <span class="text-muted">—</span>
                                 @endif
                             </td>
+                            <td class="py-2 cell-edit-td" style="min-width:150px;">
+                                @if($canEditProducts)
+                                <select class="cell-edit form-select form-select-sm" data-field="origin_id"
+                                        data-product="{{ $product->id }}" data-original="{{ $product->origin_id }}"
+                                        data-placeholder="Sin origen">
+                                    <option value="">—</option>
+                                    @foreach($origins as $o)
+                                    <option value="{{ $o->id }}" {{ (string) $product->origin_id === (string) $o->id ? 'selected' : '' }}>{{ $o->name }}</option>
+                                    @endforeach
+                                </select>
+                                @elseif($product->origin)
+                                <span class="badge bg-light text-dark border fw-normal" style="font-size:.75rem;">{{ $product->origin->name }}</span>
+                                @else
+                                <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td class="py-2 text-center">
                                 @php
                                     $stock    = (float) $product->current_stock;
@@ -205,7 +231,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 @if($hasFilters)
                                 <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
                                 <p class="mb-0">No se encontraron productos con esos filtros.</p>
@@ -282,7 +308,7 @@
         const id        = this.dataset.product;
         const value     = this.value;
         const original  = this.dataset.original || '';
-        const labelTxt  = field === 'category_id' ? 'Categoría' : 'Marca';
+        const labelTxt  = field === 'category_id' ? 'Categoría' : (field === 'brand_id' ? 'Marca' : 'Origen');
         const $td       = $sel.closest('td');
 
         $td.addClass('saving').removeClass('saved');

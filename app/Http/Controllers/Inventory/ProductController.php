@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Inventory\ProductBrand;
 use App\Models\Inventory\ProductCategory;
+use App\Models\Inventory\ProductOrigin;
 use App\Models\Inventory\ProductPhoto;
 use App\Models\Product;
 use App\Models\Warehouse;
@@ -26,10 +27,11 @@ class ProductController extends Controller
         $q          = trim((string) $request->get('q', ''));
         $categoryId = $request->get('category_id');
         $brandId    = $request->get('brand_id');
+        $originId   = $request->get('origin_id');
         $status     = $request->get('status'); // '', 'active', 'inactive'
         $low        = $request->boolean('low');
 
-        $products = Product::with(['company', 'category', 'brand', 'photos'])
+        $products = Product::with(['company', 'category', 'brand', 'origin', 'photos'])
             ->when($cid, fn ($x) => $x->where('company_id', $cid))
             ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w
                 ->where('name', 'like', "%{$q}%")
@@ -38,6 +40,7 @@ class ProductController extends Controller
                 ->orWhere('barcode', 'like', "%{$q}%")))
             ->when($categoryId, fn ($x) => $x->where('category_id', $categoryId))
             ->when($brandId, fn ($x) => $x->where('brand_id', $brandId))
+            ->when($originId, fn ($x) => $x->where('origin_id', $originId))
             ->when($status === 'active', fn ($x) => $x->where('active', true))
             ->when($status === 'inactive', fn ($x) => $x->where('active', false))
             ->when($low, fn ($x) => $x->where('min_stock', '>', 0)->whereColumn('current_stock', '<=', 'min_stock'))
@@ -50,26 +53,32 @@ class ProductController extends Controller
             ->where('active', true)->orderBy('name')->get(['id', 'name']);
         $brands = ProductBrand::when($cid, fn ($x) => $x->where('company_id', $cid))
             ->where('active', true)->orderBy('name')->get(['id', 'name']);
+        $origins = ProductOrigin::when($cid, fn ($x) => $x->where('company_id', $cid))
+            ->where('active', true)->orderBy('name')->get(['id', 'name']);
 
         return view('inventory.products.index', compact(
-            'products', 'categories', 'brands', 'q', 'categoryId', 'brandId', 'status', 'low'
+            'products', 'categories', 'brands', 'origins', 'q', 'categoryId', 'brandId', 'originId', 'status', 'low'
         ));
     }
 
-    /** Actualización inline de categoría / marca desde la tabla (AJAX). */
+    /** Actualización inline de categoría / marca / origen desde la tabla (AJAX). */
     public function updateQuickField(Product $product, Request $request)
     {
         $this->authorizeProduct($product);
 
-        $field = $request->get('field');
-        abort_unless(in_array($field, ['category_id', 'brand_id'], true), 422);
+        $map = [
+            'category_id' => ['table' => 'product_categories', 'model' => ProductCategory::class],
+            'brand_id'    => ['table' => 'product_brands',     'model' => ProductBrand::class],
+            'origin_id'   => ['table' => 'product_origins',    'model' => ProductOrigin::class],
+        ];
 
-        $table = $field === 'category_id' ? 'product_categories' : 'product_brands';
+        $field = $request->get('field');
+        abort_unless(isset($map[$field]), 422);
 
         $validated = $request->validate([
             'value' => [
                 'nullable',
-                Rule::exists($table, 'id')->where(fn ($q) => $q->where('company_id', $product->company_id)),
+                Rule::exists($map[$field]['table'], 'id')->where(fn ($q) => $q->where('company_id', $product->company_id)),
             ],
         ]);
 
@@ -78,8 +87,7 @@ class ProductController extends Controller
 
         $label = '—';
         if ($value) {
-            $model = $field === 'category_id' ? ProductCategory::class : ProductBrand::class;
-            $label = $model::find($value)?->name ?? '—';
+            $label = $map[$field]['model']::find($value)?->name ?? '—';
         }
 
         return response()->json(['ok' => true, 'field' => $field, 'value' => $value, 'label' => $label]);
@@ -112,6 +120,7 @@ class ProductController extends Controller
             'min_stock'          => 'nullable|numeric|min:0',
             'category_id'        => 'nullable|exists:product_categories,id',
             'brand_id'           => 'nullable|exists:product_brands,id',
+            'origin_id'          => 'nullable|exists:product_origins,id',
             'active'             => 'sometimes|boolean',
             'photos'             => 'nullable|array|max:8',
             'photos.*'           => 'image|max:3072',
@@ -260,6 +269,7 @@ class ProductController extends Controller
             'min_stock'          => 'nullable|numeric|min:0',
             'category_id'        => 'nullable|exists:product_categories,id',
             'brand_id'           => 'nullable|exists:product_brands,id',
+            'origin_id'          => 'nullable|exists:product_origins,id',
             'active'             => 'sometimes|boolean',
             'photos'             => 'nullable|array|max:8',
             'photos.*'           => 'image|max:3072',
@@ -345,12 +355,13 @@ class ProductController extends Controller
         $cid        = $companyId ?? $user->getCurrentCompany()?->id;
         $categories = ProductCategory::where('company_id', $cid)->where('active', true)->orderBy('name')->get();
         $brands     = ProductBrand::where('company_id', $cid)->where('active', true)->orderBy('name')->get();
+        $origins    = ProductOrigin::where('company_id', $cid)->where('active', true)->orderBy('name')->get();
         $motoModels = \App\Models\Motos\MotoModel::with('brand')->where('company_id', $cid)->orderBy('name')->get();
         $companies  = $user->is_super_admin
             ? Company::orderBy('name')->get()
             : collect([$user->getCurrentCompany()])->filter();
 
-        return compact('categories', 'brands', 'motoModels', 'companies');
+        return compact('categories', 'brands', 'origins', 'motoModels', 'companies');
     }
 
     // ── Importación desde Excel ───────────────────────────────

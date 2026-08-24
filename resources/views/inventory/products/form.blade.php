@@ -95,6 +95,25 @@
                             @error('brand_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="origin_id">
+                                Origen
+                                <a href="{{ route('product-origins.create') }}" class="ms-1 small text-muted" title="Crear nuevo origen" target="_blank">
+                                    <i class="bi bi-plus-circle"></i>
+                                </a>
+                            </label>
+                            <select name="origin_id" id="origin_id" class="form-select @error('origin_id') is-invalid @enderror">
+                                <option value="">— Sin origen —</option>
+                                @foreach($origins as $origin)
+                                <option value="{{ $origin->id }}"
+                                    {{ (string) old('origin_id', $isEdit ? $product->origin_id : '') === (string) $origin->id ? 'selected' : '' }}>
+                                    {{ $origin->name }}
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('origin_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" for="sku">
                                 SKU <span class="text-danger">*</span>

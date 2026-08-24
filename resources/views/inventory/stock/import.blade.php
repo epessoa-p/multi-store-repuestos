@@ -107,7 +107,7 @@
                         <table class="table table-sm mb-0 align-middle">
                             <thead class="table-light"><tr><th class="ps-4" style="width:46px;">Col.</th><th>Campo</th><th class="pe-4">Ejemplo</th></tr></thead>
                             <tbody>
-                                @foreach([['A','Nombre producto *','(01) Carburador Trueno'],['B','Categoría','Carburación (999)'],['C','Marca','Trueno'],['D','Cantidad','25'],['E','Costo','104'],['F','Precio','140'],['G','Modelo(s)','CG150, CG200'],['H','Detalle','Incluye filtro'],['I','Código','CARB-010']] as $c)
+                                @foreach([['A','Nombre producto *','(01) Carburador Trueno'],['B','Categoría','Carburación (999)'],['C','Marca','Trueno'],['D','Cantidad','25'],['E','Costo','104'],['F','Precio','140'],['G','Modelo(s)','CG150, CG200'],['H','Detalle','Incluye filtro'],['I','Código','CARB-010'],['J','Origen','BRASIL']] as $c)
                                 <tr>
                                     <td class="ps-4"><span class="badge bg-dark" style="font-size:.72rem;">{{ $c[0] }}</span></td>
                                     <td class="fw-semibold small">{{ $c[1] }}</td>
@@ -157,6 +157,7 @@
                                 <th class="py-2" style="font-size:.66rem;min-width:180px;">Nombre</th>
                                 <th class="py-2" style="font-size:.66rem;min-width:120px;">Categoría</th>
                                 <th class="py-2" style="font-size:.66rem;min-width:100px;">Marca</th>
+                                <th class="py-2" style="font-size:.66rem;min-width:100px;">Origen</th>
                                 <th class="py-2 text-center" style="font-size:.66rem;width:80px;">Cant.</th>
                                 <th class="py-2 text-end" style="font-size:.66rem;width:90px;">Costo</th>
                                 <th class="py-2 text-end" style="font-size:.66rem;width:90px;">Precio</th>
@@ -382,6 +383,7 @@
                 '<td><input class="form-control form-control-sm r-name" value="' + esc(r.name) + '"></td>' +
                 '<td><input class="form-control form-control-sm r-category" value="' + esc(r.category) + '"></td>' +
                 '<td><input class="form-control form-control-sm r-brand" value="' + esc(r.brand) + '"></td>' +
+                '<td><input class="form-control form-control-sm r-origin" value="' + esc(r.origin) + '" placeholder="Sin origen"></td>' +
                 '<td><input type="number" step="1" min="0" class="form-control form-control-sm text-center r-qty" value="' + (r.qty ?? 0) + '"></td>' +
                 '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm text-end r-cost" value="' + (r.cost ?? 0) + '"></td>' +
                 '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm text-end r-price" value="' + (r.price ?? 0) + '"></td>' +
@@ -425,6 +427,7 @@
                 category_code: row.dataset.catcode || null,
                 code: row.querySelector('.r-code').value.trim() || null,
                 brand: row.querySelector('.r-brand').value.trim(),
+                origin: row.querySelector('.r-origin').value.trim(),
                 models: row.querySelector('.r-models').value.trim(),
                 notes: row.querySelector('.r-notes').value.trim(),
                 cost: parseFloat(row.querySelector('.r-cost').value) || 0,

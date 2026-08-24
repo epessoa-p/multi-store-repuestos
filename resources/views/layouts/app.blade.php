@@ -149,6 +149,13 @@
                 </a>
             </li>
             @endif
+            @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-origins.view', $currentCompany))
+            <li class="nav-item">
+                <a class="nav-link app-link {{ request()->routeIs('product-origins.*') ? 'active' : '' }}" href="{{ route('product-origins.index') }}">
+                    <i class="bi bi-globe-americas"></i> Orígenes
+                </a>
+            </li>
+            @endif
             @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
             <li class="nav-item">
                 <a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}">
@@ -725,6 +732,9 @@
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-brands.view', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('product-brands.*') ? 'active' : '' }}" href="{{ route('product-brands.index') }}"><i class="bi bi-award me-2"></i>Marcas</a></li>
+                @endif
+                @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('product-origins.view', $currentCompany))
+                <li><a class="nav-link app-link {{ request()->routeIs('product-origins.*') ? 'active' : '' }}" href="{{ route('product-origins.index') }}"><i class="bi bi-globe-americas me-2"></i>Orígenes</a></li>
                 @endif
                 @if(auth()->user()->is_super_admin || auth()->user()->hasPermissionInCompany('inventory.kardex', $currentCompany))
                 <li><a class="nav-link app-link {{ request()->routeIs('inventory.kardex') ? 'active' : '' }}" href="{{ route('inventory.kardex') }}"><i class="bi bi-journal-text me-2"></i>Kardex</a></li>

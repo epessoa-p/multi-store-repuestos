@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Inventory\ProductBrand;
 use App\Models\Inventory\ProductCategory;
+use App\Models\Inventory\ProductOrigin;
 use App\Models\InventoryMovement;
 use App\Models\Motos\MotoModel;
 use App\Models\Product;
@@ -38,7 +39,7 @@ class StockController extends Controller
         $isAll = $activeWarehouse === 'all' || !$warehouses->firstWhere('id', (int) $activeWarehouse);
         $whId  = $isAll ? null : (int) $activeWarehouse;
 
-        $products = Product::with(['category', 'brand', 'photos'])
+        $products = Product::with(['category', 'brand', 'origin', 'photos'])
             ->when($cid, fn ($q) => $q->where('company_id', $cid))
             ->where('active', true)
             ->orderBy('name')
@@ -51,6 +52,9 @@ class StockController extends Controller
             ->where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
 
         $brands = ProductBrand::when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->where('active', true)->orderBy('name')->get(['id', 'name']);
+
+        $origins = \App\Models\Inventory\ProductOrigin::when($cid, fn ($q) => $q->where('company_id', $cid))
             ->where('active', true)->orderBy('name')->get(['id', 'name']);
 
         // ── KPIs de valor de stock (según almacén seleccionado) ──
@@ -66,7 +70,7 @@ class StockController extends Controller
         $potentialProfit = $valuePrice - $valueCost;
 
         return view('inventory.stock.index', compact(
-            'products', 'warehouses', 'categories', 'brands', 'activeWarehouse', 'isAll', 'whId', 'stockMap',
+            'products', 'warehouses', 'categories', 'brands', 'origins', 'activeWarehouse', 'isAll', 'whId', 'stockMap',
             'productCount', 'totalUnits', 'valueCost', 'valuePrice', 'potentialProfit'
         ));
     }
@@ -125,8 +129,8 @@ class StockController extends Controller
     /** Descarga la plantilla Excel de inventario */
     public function template()
     {
-        $headers = ['Nombre producto', 'Categoría', 'Marca', 'Cantidad', 'Costo', 'Precio', 'Modelo(s)', 'Detalle', 'Código'];
-        $example = ['Carburador TRUENO', 'Carburacion y aire (999)', 'FULLER', '5', '104', '140', 'CG150, CG200', 'Repuesto original', 'CARB-010'];
+        $headers = ['Nombre producto', 'Categoría', 'Marca', 'Cantidad', 'Costo', 'Precio', 'Modelo(s)', 'Detalle', 'Código', 'Origen'];
+        $example = ['Carburador TRUENO', 'Carburacion y aire (999)', 'FULLER', '5', '104', '140', 'CG150, CG200', 'Repuesto original', 'CARB-010', 'BRASIL'];
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -135,8 +139,8 @@ class StockController extends Controller
         $sheet->fromArray($example, null, 'A2');
 
         // Estilo cabecera
-        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
-        foreach (range('A', 'I') as $col) {
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        foreach (range('A', 'J') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -438,7 +442,7 @@ class StockController extends Controller
             if ($name === '') continue;
 
             // Orden de columnas: A Nombre · B Categoría · C Marca · D Cantidad ·
-            //                    E Costo · F Precio · G Modelos · H Detalle · I Código
+            //                    E Costo · F Precio · G Modelos · H Detalle · I Código · J Origen
             $catRaw  = (string) ($row['B'] ?? '');
             $catCode = $this->parseParenCode($catRaw);
 
@@ -448,6 +452,7 @@ class StockController extends Controller
                 'category_code' => $catCode,                               // (núm) de la categoría
                 'code'          => trim((string) ($row['I'] ?? '')) ?: null, // código propio del producto
                 'brand'         => $this->cleanText((string) ($row['C'] ?? '')),
+                'origin'        => $this->cleanText((string) ($row['J'] ?? '')),
                 'qty'           => (float) ($row['D'] ?? 0),
                 'cost'          => (float) ($row['E'] ?? 0),
                 'price'         => (float) ($row['F'] ?? 0),
@@ -498,6 +503,17 @@ class StockController extends Controller
             'price'       => (float) ($d['price'] ?? 0),
             'description' => trim((string) ($d['notes'] ?? '')) ?: null,
         ];
+
+        // Origen: si la casilla viene VACÍA no se toca (se conserva el actual).
+        // Si trae valor: se usa el existente o se crea en product_origins.
+        $originName = trim((string) ($d['origin'] ?? ''));
+        if ($originName !== '') {
+            $origin = ProductOrigin::firstOrCreate(
+                ['company_id' => $companyId, 'name' => $originName],
+                ['active' => true]
+            );
+            $payload['origin_id'] = $origin->id;
+        }
 
         $product = Product::where('company_id', $companyId)
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])

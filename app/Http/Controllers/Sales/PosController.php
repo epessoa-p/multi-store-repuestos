@@ -25,7 +25,7 @@ class PosController extends Controller
 
         $products = Product::when($cid, fn ($q) => $q->where('company_id', $cid))
             ->where('active', true)
-            ->with(['category', 'brand', 'photos', 'motoModels.brand'])
+            ->with(['category', 'brand', 'origin', 'photos', 'motoModels.brand'])
             ->orderBy('name')
             ->get();
 
@@ -38,6 +38,12 @@ class PosController extends Controller
             ->where('active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
+
+        // Orígenes (procedencia) activos, para el filtro del POS.
+        $origins = \App\Models\Inventory\ProductOrigin::when($cid, fn ($q) => $q->where('company_id', $cid))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         // Modelos con al menos un producto asociado (para el filtro)
         $motoModels = MotoModel::with('brand')
@@ -70,7 +76,7 @@ class PosController extends Controller
             : false;
 
         return view('sales.pos.index', compact(
-            'session', 'products', 'clients', 'categories', 'motoModels',
+            'session', 'products', 'clients', 'categories', 'origins', 'motoModels',
             'warehouseId', 'activeStock', 'warehouses', 'productWhStock', 'loyaltyEnabled'
         ));
     }

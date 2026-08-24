@@ -4,6 +4,7 @@ use App\Http\Controllers\Inventory\CatalogController;
 use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\Inventory\ProductBrandController;
 use App\Http\Controllers\Inventory\ProductCategoryController;
+use App\Http\Controllers\Inventory\ProductOriginController;
 use App\Http\Controllers\Inventory\StockController;
 use App\Http\Controllers\Inventory\WarehouseController;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/',              [ProductCategoryController::class, 'store'])->name('store')->middleware('check-permission:product-categories.create');
         Route::get('/{category}/edit',[ProductCategoryController::class, 'edit'])->name('edit')->middleware('check-permission:product-categories.edit');
         Route::put('/{category}',     [ProductCategoryController::class, 'update'])->name('update')->middleware('check-permission:product-categories.edit');
+        Route::post('/{category}/quick-code', [ProductCategoryController::class, 'updateCode'])->name('quick-code')->middleware('check-permission:product-categories.edit');
         Route::delete('/{category}',  [ProductCategoryController::class, 'destroy'])->name('destroy')->middleware('check-permission:product-categories.delete');
     });
 
@@ -42,6 +44,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/{brand}/edit',[ProductBrandController::class, 'edit'])->name('edit')->middleware('check-permission:product-brands.edit');
         Route::put('/{brand}',    [ProductBrandController::class, 'update'])->name('update')->middleware('check-permission:product-brands.edit');
         Route::delete('/{brand}', [ProductBrandController::class, 'destroy'])->name('destroy')->middleware('check-permission:product-brands.delete');
+    });
+
+    // ── Orígenes (procedencia) ─────────────────────────────────────────────────
+    Route::prefix('inventory/origins')->name('product-origins.')->group(function () {
+        Route::get('/',            [ProductOriginController::class, 'index'])->name('index')->middleware('check-permission:product-origins.view');
+        Route::get('/create',      [ProductOriginController::class, 'create'])->name('create')->middleware('check-permission:product-origins.create');
+        Route::post('/',           [ProductOriginController::class, 'store'])->name('store')->middleware('check-permission:product-origins.create');
+        Route::get('/{origin}/edit',[ProductOriginController::class, 'edit'])->name('edit')->middleware('check-permission:product-origins.edit');
+        Route::put('/{origin}',    [ProductOriginController::class, 'update'])->name('update')->middleware('check-permission:product-origins.edit');
+        Route::delete('/{origin}', [ProductOriginController::class, 'destroy'])->name('destroy')->middleware('check-permission:product-origins.delete');
     });
 
     // ── Kardex general ────────────────────────────────────────────────────────

@@ -115,6 +115,19 @@
     </div>
     @endif
 
+    {{-- ── FILTERS: origen (scroll) ───────────────────────────────────── --}}
+    @if($origins->count())
+    <div class="d-flex align-items-center gap-2 mb-3 flex-nowrap">
+        <span class="text-muted flex-shrink-0" style="font-size:.72rem;"><i class="bi bi-globe-americas me-1"></i>Origen</span>
+        <div class="cat-filter-bar flex-grow-1 min-w-0">
+            <button type="button" class="cat-pill origin-pill active" data-origin="">Todos</button>
+            @foreach($origins as $origin)
+            <button type="button" class="cat-pill origin-pill" data-origin="{{ $origin->id }}">{{ $origin->name }}</button>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- ── KPIs: valor de stock ───────────────────────────────────────── --}}
     <div class="row g-2 mb-3" id="stockKpis">
         <div class="col-6 col-lg">
@@ -226,6 +239,7 @@
                         <tr class="border-bottom border-light stock-row"
                             data-category="{{ $product->category_id }}"
                             data-brand="{{ $product->brand_id }}"
+                            data-origin="{{ $product->origin_id }}"
                             data-name="{{ strtolower($product->name) }}"
                             data-sku="{{ strtolower($product->sku ?? '') }}"
                             data-code="{{ strtolower($product->code ?? '') }}"
@@ -256,6 +270,12 @@
                                 <span class="text-muted" style="font-size:.73rem;">
                                     {{ $product->code ?: $product->sku }}
                                 </span>
+                                @if($product->origin)
+                                <span class="badge bg-light text-dark border fw-normal ms-1" style="font-size:.68rem;vertical-align:middle;"
+                                      title="Origen">
+                                    <i class="bi bi-globe-americas me-1 text-muted"></i>{{ $product->origin->name }}
+                                </span>
+                                @endif
                                 @if($isLow)
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1"
                                       style="font-size:.68rem;vertical-align:middle;">
@@ -628,10 +648,11 @@
     });
 
     // ── Category + brand + search filters + paginación client-side ────
-    let activeCat   = '';
-    let activeBrand = '';
-    let searchQ     = '';
-    let sortAsc     = true;
+    let activeCat    = '';
+    let activeBrand  = '';
+    let activeOrigin = '';
+    let searchQ      = '';
+    let sortAsc      = true;
 
     const PAGE_SIZE     = 25;          // productos por página
     let currentPage     = 1;
@@ -644,9 +665,10 @@
         filteredRows = [];
 
         rows.forEach(function (row) {
-            const cat   = row.dataset.category || '';
-            const brand = row.dataset.brand || '';
-            const stock = parseFloat(row.dataset.stock) || 0;
+            const cat    = row.dataset.category || '';
+            const brand  = row.dataset.brand || '';
+            const origin = row.dataset.origin || '';
+            const stock  = parseFloat(row.dataset.stock) || 0;
             const name  = row.dataset.name  || '';
             const sku   = row.dataset.sku   || '';
             const code  = row.dataset.code  || '';
@@ -662,13 +684,16 @@
             // Brand filter
             let brandMatch = activeBrand === '' || brand == activeBrand;
 
+            // Origin filter
+            let originMatch = activeOrigin === '' || origin == activeOrigin;
+
             // Search filter
             let searchMatch = true;
             if (q) {
                 searchMatch = name.includes(q) || sku.includes(q) || code.includes(q);
             }
 
-            if (catMatch && brandMatch && searchMatch) filteredRows.push(row);
+            if (catMatch && brandMatch && originMatch && searchMatch) filteredRows.push(row);
         });
     }
 
@@ -785,6 +810,16 @@
             document.querySelectorAll('.cat-pill[data-brand]').forEach(function (b) { b.classList.remove('active'); });
             this.classList.add('active');
             activeBrand = this.dataset.brand;
+            applyFilters();
+        });
+    });
+
+    // Origin pills (tienen data-origin)
+    document.querySelectorAll('.cat-pill[data-origin]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.cat-pill[data-origin]').forEach(function (b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            activeOrigin = this.dataset.origin;
             applyFilters();
         });
     });
