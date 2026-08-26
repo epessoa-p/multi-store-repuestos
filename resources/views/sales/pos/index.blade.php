@@ -113,7 +113,7 @@
                         <i class="bi bi-search text-muted"></i>
                     </span>
                     <input type="text" id="productSearch" class="form-control border-start-0 ps-0"
-                           placeholder="Buscar producto por nombre, código o categoría..."
+                           placeholder="Buscar producto por nombre, código, categoría o modelo..."
                            autocomplete="off">
                     <button type="button" class="btn btn-light border" id="clearSearch" style="display:none;" onclick="clearSearch()">
                         <i class="bi bi-x-lg"></i>
@@ -930,7 +930,8 @@ function renderGrid(filter) {
             (p.code && p.code.toLowerCase().includes(q)) ||
             p.sku.toLowerCase().includes(q) ||
             p.category.toLowerCase().includes(q) ||
-            (p.origin && p.origin.toLowerCase().includes(q)))
+            (p.origin && p.origin.toLowerCase().includes(q)) ||
+            (p.compatible_models && p.compatible_models.toLowerCase().includes(q)))
         : PRODUCTS.slice();
 
     if (selectedCats.size) {
