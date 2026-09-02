@@ -246,7 +246,7 @@
                                     <span class="input-group-text bg-light px-2">%</span>
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center small mb-1" id="discountAmountRow" style="display:none;">
+                            <div class="justify-content-between align-items-center small mb-1 d-none" id="discountAmountRow">
                                 <span class="text-muted">Descuento aplicado</span>
                                 <span class="text-danger" id="cartDiscount">-$0.00</span>
                             </div>
@@ -1133,10 +1133,12 @@ function recalcCart() {
     document.getElementById('cartSubtotal').textContent = '$' + sub.toFixed(2);
     const dRow = document.getElementById('discountAmountRow');
     if (disc > 0) {
-        dRow.style.display = '';
+        dRow.classList.remove('d-none');
+        dRow.classList.add('d-flex');
         document.getElementById('cartDiscount').textContent = '-$' + disc.toFixed(2);
     } else {
-        dRow.style.display = 'none';
+        dRow.classList.add('d-none');
+        dRow.classList.remove('d-flex');
     }
     document.getElementById('cartTotal').textContent = '$' + total.toFixed(2);
 
