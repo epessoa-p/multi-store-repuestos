@@ -233,12 +233,12 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Margen estimado</label>
+                            <label class="form-label fw-semibold">Ganancia estimada</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0 text-muted">%</span>
                                 <div id="marginDisplay" class="form-control border-start-0 bg-light fw-bold text-success">—</div>
                             </div>
-                            <div class="form-text text-muted">Se calcula automáticamente.</div>
+                            <div class="form-text text-muted">% de ganancia sobre el costo (igual que en Inventario).</div>
                         </div>
 
                         <div class="col-md-4">
@@ -334,10 +334,11 @@ function calcMargin() {
     const cost  = parseFloat(document.getElementById('cost').value)  || 0;
     const price = parseFloat(document.getElementById('price').value) || 0;
     const el    = document.getElementById('marginDisplay');
-    if (price > 0 && cost >= 0) {
-        const margin = ((price - cost) / price * 100);
-        el.textContent = margin.toFixed(1) + '%';
-        el.className = 'form-control border-start-0 bg-light fw-bold ' + (margin >= 0 ? 'text-success' : 'text-danger');
+    // Ganancia sobre el COSTO (mismo criterio que la vista de Inventario).
+    if (cost > 0) {
+        const ganancia = ((price - cost) / cost * 100);
+        el.textContent = ganancia.toFixed(1) + '%';
+        el.className = 'form-control border-start-0 bg-light fw-bold ' + (ganancia >= 0 ? 'text-success' : 'text-danger');
     } else {
         el.textContent = '—';
         el.className = 'form-control border-start-0 bg-light fw-bold text-muted';
