@@ -242,7 +242,7 @@
                                     <input type="number" id="discountPct" name="discount_pct"
                                            class="form-control text-end" min="0" max="100" step="any"
                                            value="0" placeholder="0"
-                                           oninput="recalcCart()">
+                                           oninput="onDiscountPctInput()">
                                     <span class="input-group-text bg-light px-2">%</span>
                                 </div>
                             </div>
@@ -250,8 +250,8 @@
                                 <span class="text-muted">Descuento aplicado</span>
                                 <span class="text-danger" id="cartDiscount">-$0.00</span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center fw-bold border-top pt-2 mt-1">
-                                <span class="d-flex align-items-center gap-2">
+                            <div class="d-flex justify-content-between align-items-center fw-bold border-top pt-2 mt-1 gap-2">
+                                <span class="d-flex align-items-center gap-2 flex-shrink-0">
                                     TOTAL
                                     <button type="button" id="btnRoundTotal" class="btn btn-outline-secondary btn-sm py-0 px-2 d-none fw-normal"
                                             style="font-size:.72rem;line-height:1.5;" title="Redondear el total al entero más cercano"
@@ -259,7 +259,14 @@
                                         <i class="bi bi-magic me-1"></i>Redondear
                                     </button>
                                 </span>
-                                <span id="cartTotal" class="fs-5 text-dark">$0.00</span>
+                                <div class="input-group input-group-sm" style="width:130px;">
+                                    <span class="input-group-text bg-light px-2 fw-bold">$</span>
+                                    <input type="number" id="cartTotalInput" step="0.5" min="0"
+                                           class="form-control text-end fw-bold fs-6 text-dark px-2"
+                                           value="0.00" onchange="onTotalInputChange(this)"
+                                           title="Total editable — se ajusta a pasos de 0.50, entre el costo y el precio">
+                                </div>
+                                <input type="hidden" name="discount_amount" id="discountAmount" value="0">
                             </div>
                         </div>
                         {{-- Action buttons --}}
@@ -960,11 +967,13 @@ function renderGrid(filter) {
         const img = p.photo
             ? `<img src="${p.photo}" class="product-thumb mb-2" alt="${p.name}">`
             : `<div class="product-thumb-placeholder mb-2"><i class="bi bi-box-seam"></i></div>`;
-        const meta = [p.brand, p.origin, p.compatible_models].filter(Boolean).join(' · ') || '—';
-        const metaEsc = meta.replace(/"/g, '&quot;');
+        const brandOrigin = [p.brand, p.origin].filter(Boolean).join(' · ');
+        const boEsc   = brandOrigin.replace(/"/g, '&quot;');
+        const models  = p.compatible_models || '';
+        const modelsEsc = models.replace(/"/g, '&quot;');
         const codeHtml = p.code
-            ? `<span class="badge bg-light text-dark border" style="font-size:.6rem;"><i class="bi bi-upc me-1"></i>${p.code}</span>`
-            : `<span class="text-muted fst-italic" style="font-size:.62rem;">Sin código</span>`;
+            ? `<span class="badge bg-light text-dark border flex-shrink-0" style="font-size:.6rem;"><i class="bi bi-upc me-1"></i>${p.code}</span>`
+            : `<span class="text-muted fst-italic flex-shrink-0" style="font-size:.62rem;">Sin código</span>`;
         return `
         <div class="col-6 col-md-4 col-xl-3">
             <div class="product-card ${disabled} ${inCart}" onclick="addToCart(${p.id})" data-pid="${p.id}">
@@ -973,8 +982,11 @@ function renderGrid(filter) {
                 </button>
                 ${img}
                 <div class="fw-semibold lh-sm mb-1" style="font-size:.78rem;">${p.name}</div>
-                <div class="mb-1">${codeHtml}</div>
-                <div class="text-muted mb-1 text-truncate" style="font-size:.66rem;" title="${metaEsc}">${meta}</div>
+                <div class="d-flex align-items-center gap-1 mb-1" style="min-width:0;">
+                    ${codeHtml}
+                    ${brandOrigin ? `<span class="text-muted text-truncate" style="font-size:.62rem;min-width:0;" title="${boEsc}">${brandOrigin}</span>` : ''}
+                </div>
+                ${models ? `<div class="text-muted mb-1 text-truncate" style="font-size:.62rem;" title="${modelsEsc}"><i class="bi bi-bicycle me-1"></i>${models}</div>` : ''}
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <span class="fw-bold" style="font-size:.85rem;">$${p.price.toFixed(2)}</span>
                     ${stockBadge}
@@ -1058,6 +1070,8 @@ function renderCart() {
         empty.style.display = '';
         table.style.display = 'none';
         inputs.innerHTML = '';
+        manualDiscount = null;
+        document.getElementById('discountPct').value = 0;
         recalcCart();
         return;
     }
@@ -1118,17 +1132,30 @@ function updateQty(pid, val) {
     renderCart();
 }
 
+// Descuento fijado manualmente al editar el TOTAL (monto en Bs). null = manda el %.
+let manualDiscount = null;
+const round2 = (n) => Math.round(n * 100) / 100;
+
 function recalcCart() {
     const items  = Object.values(cart);
     const sub    = items.reduce((s, it) => s + it.qty * it.product.price, 0);
     const profit = items.reduce((s, it) => s + it.qty * (it.product.price - (it.product.cost || 0)), 0);
     // Base del descuento igual que el servidor: suma de la ganancia POSITIVA por ítem.
     const profitBasis = items.reduce((s, it) => s + Math.max(0, it.qty * (it.product.price - (it.product.cost || 0))), 0);
-    let pct = parseFloat(document.getElementById('discountPct').value) || 0;
-    pct = Math.min(100, Math.max(0, pct));
-    // El descuento solo afecta a la ganancia (precio − costo)
-    const disc  = Math.max(0, Math.round(profitBasis * pct / 100 * 100) / 100);
-    const total = Math.max(0, sub - disc);
+
+    let disc;
+    if (manualDiscount !== null) {
+        // El total lo fijó el cajero: el descuento es un monto exacto, acotado a la ganancia.
+        disc = round2(Math.min(Math.max(0, manualDiscount), profitBasis));
+        // Sincronizar el campo % (informativo, 2 decimales).
+        const pctEq = profitBasis > 0 ? (disc / profitBasis * 100) : 0;
+        document.getElementById('discountPct').value = parseFloat(pctEq.toFixed(2));
+    } else {
+        let pct = parseFloat(document.getElementById('discountPct').value) || 0;
+        pct = Math.min(100, Math.max(0, pct));
+        disc = Math.max(0, round2(profitBasis * pct / 100));
+    }
+    const total = Math.max(0, round2(sub - disc));
 
     document.getElementById('cartSubtotal').textContent = '$' + sub.toFixed(2);
     const dRow = document.getElementById('discountAmountRow');
@@ -1140,27 +1167,47 @@ function recalcCart() {
         dRow.classList.add('d-none');
         dRow.classList.remove('d-flex');
     }
-    document.getElementById('cartTotal').textContent = '$' + total.toFixed(2);
+    // Total editable: no pisar mientras el cajero lo tipea.
+    const totalInput = document.getElementById('cartTotalInput');
+    if (totalInput && document.activeElement !== totalInput) {
+        totalInput.value = total.toFixed(2);
+    }
+    document.getElementById('discountAmount').value = disc.toFixed(2);
 
     // Botón "Redondear": visible solo si el total tiene decimales y hay ganancia para ajustar.
     const esRedondeable = profitBasis > 0 && Math.abs(total - Math.round(total)) > 0.001;
     document.getElementById('btnRoundTotal').classList.toggle('d-none', !esRedondeable);
 
-    return { sub, disc, total, pct, profit, profitBasis };
+    return { sub, disc, total, profit, profitBasis };
 }
 
-// Redondea el total al entero de Bs más cercano y ajusta el % de descuento equivalente.
+// Aplica un total objetivo (fija el descuento como monto exacto, acotado a [costo, precio]).
+function aplicarTotalObjetivo(target) {
+    const { sub, profitBasis } = recalcCart();
+    const minTotal = Math.max(0, round2(sub - profitBasis));   // piso ≈ suma de costos
+    const maxTotal = round2(sub);                              // techo = subtotal (precio)
+    let t = Math.min(maxTotal, Math.max(minTotal, target));
+    manualDiscount = round2(sub - t);
+    recalcCart();
+}
+
+// Redondea el total al entero de Bs más cercano.
 function redondearTotal() {
-    const { sub, total, profitBasis } = recalcCart();
-    if (profitBasis <= 0) return;
-    // Entero más cercano, acotado para que el descuento quede en [0, profitBasis].
-    let N = Math.round(total);
-    N = Math.min(Math.floor(sub), Math.max(Math.ceil(sub - profitBasis), N));
-    const discTarget = Math.round((sub - N) * 100) / 100;
-    let pctNuevo = profitBasis > 0 ? (discTarget / profitBasis * 100) : 0;
-    pctNuevo = Math.min(100, Math.max(0, pctNuevo));
-    // Se muestra con 2 decimales.
-    document.getElementById('discountPct').value = parseFloat(pctNuevo.toFixed(2));
+    const { total } = recalcCart();
+    aplicarTotalObjetivo(Math.round(total));
+}
+
+// Total editable: al salir del campo, ajustar a pasos de 0.50 y acotar.
+function onTotalInputChange(el) {
+    const raw = parseFloat(el.value);
+    if (isNaN(raw)) { recalcCart(); return; }
+    const snapped = Math.round(raw * 2) / 2;   // paso 0.50
+    aplicarTotalObjetivo(snapped);
+}
+
+// Al editar el % manualmente, el % vuelve a mandar (se descarta el total fijado).
+function onDiscountPctInput() {
+    manualDiscount = null;
     recalcCart();
 }
 

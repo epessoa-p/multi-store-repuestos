@@ -113,6 +113,7 @@ class PosController extends Controller
             'installments.*.due_date'  => 'required_with:installments|date',
             'installments.*.amount'    => 'required_with:installments|numeric|min:0.01',
             'down_payment'             => 'nullable|numeric|min:0',
+            'discount_amount'          => 'nullable|numeric|min:0',
         ]);
 
         // Crédito: exige un cliente real (no "Cliente general")
@@ -120,18 +121,28 @@ class PosController extends Controller
             return back()->withInput()->withErrors(['client_id' => 'Selecciona un cliente registrado para una venta a crédito (no "Cliente general").']);
         }
 
-        // Descuento en % aplicado SOLO a la ganancia (precio − costo). Se calcula en el servidor.
-        $pct = (float) ($validated['discount_pct'] ?? 0);
-        $discount = 0.0;
-        if ($pct > 0) {
-            $costs = Product::whereIn('id', collect($validated['items'])->pluck('product_id')->filter())->pluck('cost', 'id');
-            foreach ($validated['items'] as $it) {
-                // Ítems de venta rápida sin product_id → costo 0 (toda la línea es ganancia).
-                $cost   = (float) ($costs[$it['product_id'] ?? 0] ?? 0);
-                $profit = ((float) $it['unit_price'] - $cost) * (float) $it['quantity'];
-                if ($profit > 0) $discount += $profit * $pct / 100;
-            }
-            $discount = round($discount, 2);
+        // Descuento aplicado SOLO a la ganancia (precio − costo), calculado en el servidor.
+        // Base = suma de la ganancia POSITIVA por ítem, con el costo real de la BD.
+        $costs = Product::whereIn('id', collect($validated['items'])->pluck('product_id')->filter())->pluck('cost', 'id');
+        $profitBasis = 0.0;
+        foreach ($validated['items'] as $it) {
+            // Ítems de venta rápida sin product_id → costo 0 (toda la línea es ganancia).
+            $cost   = (float) ($costs[$it['product_id'] ?? 0] ?? 0);
+            $profit = ((float) $it['unit_price'] - $cost) * (float) $it['quantity'];
+            if ($profit > 0) $profitBasis += $profit;
+        }
+        $profitBasis = round($profitBasis, 2);
+
+        // El total editable manda como monto exacto (acotado a la ganancia: nunca vende bajo costo);
+        // si no viene, se usa el % sobre la ganancia.
+        $amount = (float) ($validated['discount_amount'] ?? 0);
+        $pct    = (float) ($validated['discount_pct'] ?? 0);
+        if ($amount > 0) {
+            $discount = min(round($amount, 2), $profitBasis);
+        } elseif ($pct > 0) {
+            $discount = round($profitBasis * $pct / 100, 2);
+        } else {
+            $discount = 0.0;
         }
 
         try {
