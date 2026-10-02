@@ -86,6 +86,15 @@
                                 <a href="{{ route('cash-registers.edit', $register) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                @if(($register->movements_count ?? 0) > 0 || ($register->sessions_count ?? 0) > 0)
+                                {{-- Con historial: no se puede eliminar, solo desactivar --}}
+                                <span class="d-inline-block" tabindex="0"
+                                      title="Tiene movimientos registrados: no se puede eliminar. Desactívala desde Editar para conservar su historial.">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled style="pointer-events:none;">
+                                        <i class="bi bi-lock"></i>
+                                    </button>
+                                </span>
+                                @else
                                 <form action="{{ route('cash-registers.destroy', $register) }}" method="POST" class="d-inline"
                                       onsubmit="return confirm('¿Eliminar la caja «{{ addslashes($register->name) }}»?')">
                                     @csrf @method('DELETE')
@@ -93,6 +102,7 @@
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
+                                @endif
                             </td>
                         </tr>
                         @empty

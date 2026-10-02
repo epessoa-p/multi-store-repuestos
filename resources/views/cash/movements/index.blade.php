@@ -653,6 +653,10 @@
                                     </td>
                                     <td class="py-2 fw-semibold small">
                                         {{ $c->cashRegister?->name ?? '—' }}
+                                        @if($c->cashRegister?->trashed())
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1"
+                                              style="font-size:.62rem;" title="La caja fue eliminada; su historial se conserva"><i class="bi bi-archive me-1"></i>Caja eliminada</span>
+                                        @endif
                                         @if($isOpen)
                                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1"
                                               style="font-size:.62rem;"><i class="bi bi-unlock me-1"></i>Pendiente de cierre</span>

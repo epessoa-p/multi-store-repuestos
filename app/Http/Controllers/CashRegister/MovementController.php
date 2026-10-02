@@ -52,10 +52,10 @@ class MovementController extends Controller
         $branchId = ($branch !== 'all' && $branches->firstWhere('id', (int) $branch)) ? (int) $branch : null;
 
         // ── Movimientos de caja (ingresos/egresos) ────────────
-        $movQuery = CashMovement::with(['cashRegister.branch', 'user.personal'])
+        $movQuery = CashMovement::with(['cashRegister' => fn ($q) => $q->withTrashed(), 'cashRegister.branch', 'user.personal'])
             ->when($cid, fn ($qq) => $qq->where('company_id', $cid))
             ->whereBetween('movement_date', [$from, $to])
-            ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('branch_id', $branchId)))
+            ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->withTrashed()->where('branch_id', $branchId)))
             ->when($q !== '', fn ($qq) => $qq->where('description', 'like', "%{$q}%"))
             ->orderByDesc('movement_date')->orderByDesc('id');
 
@@ -152,15 +152,15 @@ class MovementController extends Controller
         $porPagar = $this->paginateCollection($porPagar, 15, 'pp');
 
         // ── Cierres de caja (incluye las abiertas: pendientes de cierre) ──
-        $closures = CashRegisterSession::with(['cashRegister.branch', 'closedBy', 'openedBy'])
+        $closures = CashRegisterSession::with(['cashRegister' => fn ($q) => $q->withTrashed(), 'cashRegister.branch', 'closedBy', 'openedBy'])
             ->where(function ($w) use ($from, $to) {
                 // Cerradas dentro del período…
                 $w->where(fn ($x) => $x->where('status', 'closed')->whereBetween('closed_at', [$from, $to]))
                   // …o abiertas (sin cerrar todavía), sin importar el período
                   ->orWhere('status', 'open');
             })
-            ->when($cid, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('company_id', $cid)))
-            ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->where('branch_id', $branchId)))
+            ->when($cid, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->withTrashed()->where('company_id', $cid)))
+            ->when($branchId, fn ($qq) => $qq->whereHas('cashRegister', fn ($r) => $r->withTrashed()->where('branch_id', $branchId)))
             ->orderByRaw("CASE WHEN status = 'open' THEN 0 ELSE 1 END") // abiertas primero
             ->orderByDesc('closed_at')
             ->orderByDesc('opened_at')
@@ -187,7 +187,7 @@ class MovementController extends Controller
     public function sessionDetail(CashRegisterSession $session)
     {
         $user = auth()->user();
-        $session->load(['cashRegister.branch', 'openedBy', 'closedBy']);
+        $session->load(['cashRegister' => fn ($q) => $q->withTrashed(), 'cashRegister.branch', 'openedBy', 'closedBy']);
 
         if (!$user->is_super_admin
             && $session->cashRegister?->company_id !== $user->getCurrentCompany()?->id) {

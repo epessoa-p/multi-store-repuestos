@@ -14,7 +14,7 @@ class CashRegisterController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $query = CashRegister::with(['branch', 'assignedPersonal'])->latest();
+        $query = CashRegister::with(['branch', 'assignedPersonal'])->withCount(['movements', 'sessions'])->latest();
 
         if (!$user->is_super_admin) {
             $query->where('company_id', $user->getCurrentCompany()?->id);
@@ -120,6 +120,11 @@ class CashRegisterController extends Controller
 
         if ($cashRegister->activeSession()) {
             return back()->withErrors(['error' => 'No se puede eliminar una caja con sesión activa.']);
+        }
+
+        // Una caja con historial no se elimina: se desactiva, para conservar sus movimientos en los reportes.
+        if ($cashRegister->movements()->exists() || $cashRegister->sessions()->exists()) {
+            return back()->withErrors(['error' => "No se puede eliminar la caja «{$cashRegister->name}» porque ya tiene movimientos registrados. Desactívala desde Editar (desmarca \"Activa\") para dejar de usarla sin perder su historial."]);
         }
 
         try {
