@@ -186,15 +186,38 @@ class User extends Authenticatable
     }
 
     /**
+     * Caché por request de la empresa actual (se invoca varias veces por
+     * request desde middleware, controladores y vistas). Evita repetir
+     * Company::find/activeCompanies en cada llamada.
+     */
+    protected ?Company $currentCompanyMemo = null;
+    protected bool $currentCompanyResolved = false;
+
+    /**
      * Obtener empresa actual de la sesión o la primera que pertenezca
      */
     public function getCurrentCompany(): ?Company
     {
+        if ($this->currentCompanyResolved) {
+            return $this->currentCompanyMemo;
+        }
+        $this->currentCompanyResolved = true;
+
         if (auth()->check() && session()->has('current_company_id')) {
-            return Company::find(session('current_company_id'));
+            return $this->currentCompanyMemo = Company::find(session('current_company_id'));
         }
 
-        return $this->activeCompanies()->first();
+        return $this->currentCompanyMemo = $this->activeCompanies()->first();
+    }
+
+    /**
+     * Olvidar la empresa memoizada (p. ej. tras cambiar de empresa en el
+     * mismo request). El cambio normal redirige, así que rara vez hace falta.
+     */
+    public function forgetCurrentCompany(): void
+    {
+        $this->currentCompanyResolved = false;
+        $this->currentCompanyMemo = null;
     }
 }
 

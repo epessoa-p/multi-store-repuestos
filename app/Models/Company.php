@@ -78,12 +78,34 @@ class Company extends Model
     }
 
     /**
+     * Caché de permisos por request. Clave: "{companyId}:{userId}".
+     * El menú lateral consulta permisos ~148 veces por página; sin esto,
+     * cada verificación reconsultaba la BD (rol + permisos + directos).
+     * En PHP-FPM el estado se reinicia por request, así que es seguro.
+     */
+    protected static array $permissionCache = [];
+
+    /**
+     * Limpia el caché de permisos en memoria (útil tras cambiar roles/permisos
+     * dentro del mismo request, o en tests).
+     */
+    public static function clearPermissionCache(): void
+    {
+        static::$permissionCache = [];
+    }
+
+    /**
      * Obtener permisos efectivos (del rol + permisos adicionales)
      */
     public function getPermissionsForUser(User $user): array
     {
+        $key = $this->id . ':' . $user->id;
+        if (isset(static::$permissionCache[$key])) {
+            return static::$permissionCache[$key];
+        }
+
         if ($user->is_super_admin) {
-            return Permission::all()->pluck('slug')->toArray();
+            return static::$permissionCache[$key] = Permission::all()->pluck('slug')->toArray();
         }
 
         $role = $this->getRoleForUser($user);
@@ -101,6 +123,6 @@ class Company extends Model
             ->pluck('permissions.slug')
             ->toArray();
 
-        return array_unique(array_merge($permissions, $directPermissions));
+        return static::$permissionCache[$key] = array_values(array_unique(array_merge($permissions, $directPermissions)));
     }
 }
